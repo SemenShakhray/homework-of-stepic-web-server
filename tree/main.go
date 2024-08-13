@@ -9,38 +9,6 @@ import (
 	"sort"
 )
 
-// func getTab(grafic string, level int) (tab string) {
-// 	switch grafic {
-// 	case "├───":
-// 		switch level {
-// 		case 0:
-// 			return ""
-// 		case 1:
-// 			return "\t"
-// 		case 2:
-// 			return "\t│\t"
-// 		case 3:
-// 			return "\t│\t│\t"
-// 		case 4:
-// 			return "\t│\t│\t│\t"
-// 		}
-// 	case "└───":
-// 		switch level {
-// 		case 0:
-// 			return ""
-// 		case 1:
-// 			return "\t"
-// 		case 2:
-// 			return "\t│\t"
-// 		case 3:
-// 			return "\t│\t│\t"
-// 		case 4:
-// 			return "\t│\t│\t\t"
-// 		}
-// 	}
-// 	return
-// }
-
 func dirTree(out io.Writer, path string, printFiles bool) error {
 	err := getDirTree(out, "", path, printFiles)
 	if err != nil {
@@ -112,6 +80,7 @@ func getDirTree(out io.Writer, prefix, path string, printFiles bool) error {
 }
 
 func main() {
+	// file:=os.Create("dire")
 	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
 		panic("usage go run main.go . [-f]")
