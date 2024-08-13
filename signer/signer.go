@@ -13,7 +13,6 @@ var wg sync.WaitGroup
 
 func main() {
 	start := time.Now()
-	// inputData := []int{0, 1}
 	inputData := []int{0, 1, 1, 2, 3, 5, 8}
 	flowJobs := []job{
 		job(func(in, out chan interface{}) {
@@ -42,11 +41,6 @@ func ExecutePipeline(jobs ...job) {
 		wg.Add(1)
 		out := make(chan interface{})
 		go func(funcJob job, in, out chan interface{}, wg *sync.WaitGroup) {
-			// if i == len(jobs)-1 {
-			// 	job(chanel[i], chanel[i+1])
-			// 	wg.Wait()
-			// 	close(chanel[i+1])
-			// }
 			funcJob(in, out)
 			wg.Done()
 			close(out)
@@ -60,7 +54,6 @@ func SingleHash(in, out chan interface{}) {
 	var counter int
 	for v := range in {
 		counter++
-		// var result string
 		data := strconv.Itoa(v.(int))
 		md5 := DataSignerMd5(data)
 		wg.Add(2)
