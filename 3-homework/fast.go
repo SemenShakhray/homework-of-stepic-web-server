@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -12,21 +13,22 @@ import (
 func FastSearch(out io.Writer) {
 	const filePath string = "./data/users.txt"
 	var foundUsers strings.Builder
-
-	reader, err := os.ReadFile(filePath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
 	}
 	seenBrowsers := make(map[string]struct{})
 	uniqueBrowsers := 0
-	lines := strings.Split(string(reader), "\n")
-	for i, line := range lines {
-		user := model.User{}
-		user.UnmarshalJSON([]byte(line))
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan(); i++ {
+		line := scanner.Text()
+
+		br := model.Brows{}
+		br.UnmarshalJSON([]byte(line))
 		isAndroid := false
 		isMSIE := false
 
-		for _, browserRaw := range user.Browsers {
+		for _, browserRaw := range br.Browsers {
 			if ok := strings.Contains(browserRaw, "Android"); ok {
 				isAndroid = true
 				if _, ok := seenBrowsers[browserRaw]; !ok {
@@ -45,14 +47,12 @@ func FastSearch(out io.Writer) {
 		if !(isAndroid && isMSIE) {
 			continue
 		}
+		user := &model.User{}
+		user.UnmarshalJSON([]byte(line))
 		email := strings.ReplaceAll(user.Email, "@", " [at] ")
 		fmt.Fprintf(&foundUsers, "[%d] %s <%s>\n", i, user.Name, email)
 	}
 
 	fmt.Fprintln(out, "found users:\n"+foundUsers.String())
 	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
-}
-
-func main() {
-	FastSearch(os.Stdout)
 }
