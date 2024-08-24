@@ -1,11 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type User struct {
@@ -22,11 +28,11 @@ type Users struct {
 }
 
 type SearchRequest struct {
-	Limit      int
-	Offset     int    // Можно учесть после сортировки
-	Query      string // подстрока в 1 из полей
+	Limit      string
+	Offset     string
+	Query      string
 	OrderField string
-	OrderBy    int
+	OrderBy    string
 }
 
 const (
@@ -37,8 +43,7 @@ const (
 	ErrorBadOrderField = `OrderField invalid`
 )
 
-func SearchServer(val SearchRequest) {
-
+func SearchServer(w http.ResponseWriter, r *http.Request) {
 	read, err := os.ReadFile("dataset.xml")
 	if err != nil {
 		fmt.Errorf("error: read file -%v", err)
@@ -51,88 +56,136 @@ func SearchServer(val SearchRequest) {
 		return
 	}
 
+	searchReq := SearchRequest{
+		Query:      r.FormValue("query"),
+		OrderField: r.FormValue("order_field"),
+		OrderBy:    r.FormValue("order_by"),
+		Limit:      r.FormValue("limit"),
+		Offset:     r.FormValue("offset"),
+	}
+
 	searchUsers := make([]User, 0)
-	if val.Query == "" {
+	if searchReq.Query == "" {
 		searchUsers = append(searchUsers, users.Row...)
 	} else {
 		for _, user := range users.Row {
 			name := user.FirstName + user.LastName
-			searchName := strings.Contains(name, val.Query)
-			searchAbout := strings.Contains(user.About, val.Query)
+			searchName := strings.Contains(name, searchReq.Query)
+			searchAbout := strings.Contains(user.About, searchReq.Query)
 			if searchName || searchAbout {
 				searchUsers = append(searchUsers, user)
 			}
 		}
 	}
 	if len(searchUsers) == 0 {
-		fmt.Printf("error: This substring does not exist\n")
+		http.Error(w, "error: This substring does not exist", http.StatusBadRequest)
 		return
-	} else {
-		switch strings.ToLower(val.OrderField) {
-		case "":
-			switch val.OrderBy {
-			case OrderByDesc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].FirstName < searchUsers[j].FirstName })
-			case OrderByAsIs:
-			case OrderByAsc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].FirstName < searchUsers[i].FirstName })
-			default:
-				fmt.Printf("error: %s\n", ErrorBadOrderField)
-				return
-			}
-		case "id":
-			switch val.OrderBy {
-			case OrderByDesc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].Id < searchUsers[j].Id })
-			case OrderByAsIs:
-			case OrderByAsc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].Id < searchUsers[i].Id })
-			default:
-				fmt.Printf("error: %s\n", ErrorBadOrderField)
-				return
-			}
-		case "age":
-			switch val.OrderBy {
-			case OrderByDesc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].Age < searchUsers[j].Age })
-			case OrderByAsIs:
-			case OrderByAsc:
-				sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].Age < searchUsers[i].Age })
-			default:
-				fmt.Printf("error: %s\n", ErrorBadOrderField)
-				return
-			}
+	}
+	order_by, err := strconv.Atoi(searchReq.OrderBy)
+	if err != nil {
+		http.Error(w, "error parsing orderBy", http.StatusBadRequest)
+	}
+	offset, err := strconv.Atoi(searchReq.Offset)
+	if err != nil {
+		http.Error(w, "error parsing offset", http.StatusBadRequest)
+	}
+	limit, err := strconv.Atoi(searchReq.Limit)
+	if err != nil {
+		http.Error(w, "error parsing limit", http.StatusBadRequest)
+	}
+	switch strings.ToLower(searchReq.OrderField) {
+	case "":
+		switch order_by {
+		case OrderByDesc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].FirstName < searchUsers[j].FirstName })
+		case OrderByAsIs:
+		case OrderByAsc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].FirstName < searchUsers[i].FirstName })
 		default:
-			fmt.Printf("error: incorrect sorting parameter\n")
+			http.Error(w, fmt.Sprintf("error: %s\n", ErrorBadOrderField), http.StatusBadRequest)
 			return
 		}
-	}
-	if val.Limit < 0 {
-		fmt.Printf("limit must be > 0\n")
+	case "name":
+		switch order_by {
+		case OrderByDesc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].FirstName < searchUsers[j].FirstName })
+		case OrderByAsIs:
+		case OrderByAsc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].FirstName < searchUsers[i].FirstName })
+		default:
+			http.Error(w, fmt.Sprintf("error: %s\n", ErrorBadOrderField), http.StatusBadRequest)
+			return
+		}
+	case "id":
+		switch order_by {
+		case OrderByDesc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].Id < searchUsers[j].Id })
+		case OrderByAsIs:
+		case OrderByAsc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].Id < searchUsers[i].Id })
+		default:
+			http.Error(w, fmt.Sprintf("error: %s\n", ErrorBadOrderField), http.StatusBadRequest)
+			return
+		}
+	case "age":
+		switch order_by {
+		case OrderByDesc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[i].Age < searchUsers[j].Age })
+		case OrderByAsIs:
+		case OrderByAsc:
+			sort.Slice(searchUsers, func(i, j int) bool { return searchUsers[j].Age < searchUsers[i].Age })
+		default:
+			http.Error(w, fmt.Sprintf("error: %s\n", ErrorBadOrderField), http.StatusBadRequest)
+			return
+		}
+	default:
+		http.Error(w, "error: incorrect sorting parameter", http.StatusBadRequest)
 		return
 	}
-	if val.Limit > 25 {
-		val.Limit = 25
-	}
-	if val.Offset < 0 {
-		fmt.Printf("offset must be > 0\n")
+
+	if limit < 0 {
+		http.Error(w, "limit must be > 0", http.StatusBadRequest)
 		return
 	}
-	result := searchUsers[val.Offset:]
+	if limit > 25 {
+		limit = 25
+	}
+	if offset < 0 || offset > len(searchUsers) {
+		http.Error(w, "wrong offset", http.StatusBadRequest)
+		return
+	}
+
+	result := searchUsers[offset:]
 	for i, v := range result {
-		if i > val.Limit-1 {
+		if i > limit-1 {
 			continue
 		}
-		fmt.Printf("Id: %d, Name: %s, Age: %d\n", v.Id, v.FirstName+v.LastName, v.Age)
+		resp := &User{
+			Id:        v.Id,
+			FirstName: v.FirstName,
+			LastName:  v.LastName,
+			Age:       v.Age,
+			Gender:    v.Gender,
+			About:     v.About,
+		}
+		w.Header().Add("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, "error encoding JSON", http.StatusInternalServerError)
+		}
+		// fmt.Printf("Id: %d, Name: %s, Age: %d\n", v.Id, v.FirstName+v.LastName, v.Age)
 	}
 }
 
 func main() {
-	SearchServer(SearchRequest{
-		Query:      "",
-		OrderField: "AGE",
-		OrderBy:    0,
-		Limit:      10,
-		Offset:     12,
-	})
+	r := chi.NewRouter()
+	r.Get("/", SearchServer)
+	server := http.Server{
+		Addr:         ":8080",
+		Handler:      r,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	fmt.Println("startin server at :8080")
+	server.ListenAndServe()
 }
