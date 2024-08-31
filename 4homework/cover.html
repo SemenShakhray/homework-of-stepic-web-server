@@ -55,7 +55,9 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">99_hw/client.go (92.9%)</option>
+				<option value="file0">99_hw/client.go (100.0%)</option>
+				
+				<option value="file1">99_hw/precode.go (56.1%)</option>
 				
 				</select>
 			</div>
@@ -157,7 +159,7 @@ func (srv *SearchClient) FindUsers(req SearchRequest) (*SearchResponse, error) <
 
         resp, err := client.Do(searcherReq)
         if err != nil </span><span class="cov8" title="1">{
-                if err, ok := err.(net.Error); ok &amp;&amp; err.Timeout() </span><span class="cov0" title="0">{
+                if err, ok := err.(net.Error); ok &amp;&amp; err.Timeout() </span><span class="cov8" title="1">{
                         return nil, fmt.Errorf("timeout for %s", searcherParams.Encode())
                 }</span>
                 <span class="cov8" title="1">return nil, fmt.Errorf("unknown error %s", err)</span>
@@ -168,7 +170,7 @@ func (srv *SearchClient) FindUsers(req SearchRequest) (*SearchResponse, error) <
         switch resp.StatusCode </span>{
         case http.StatusUnauthorized:<span class="cov8" title="1">
                 return nil, fmt.Errorf("Bad AccessToken")</span>
-        case http.StatusInternalServerError:<span class="cov0" title="0">
+        case http.StatusInternalServerError:<span class="cov8" title="1">
                 return nil, fmt.Errorf("SearchServer fatal error")</span>
         case http.StatusBadRequest:<span class="cov8" title="1">
                 errResp := SearchErrorResponse{}
@@ -184,7 +186,7 @@ func (srv *SearchClient) FindUsers(req SearchRequest) (*SearchResponse, error) <
 
         <span class="cov8" title="1">data := []User{}
         err = json.Unmarshal(body, &amp;data)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return nil, fmt.Errorf("cant unpack result json: %s", err)
         }</span>
 
@@ -198,6 +200,223 @@ func (srv *SearchClient) FindUsers(req SearchRequest) (*SearchResponse, error) <
 
         <span class="cov8" title="1">return &amp;result, err</span>
 }
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+        "encoding/json"
+        "encoding/xml"
+        "net/http"
+        "os"
+        "sort"
+        "strconv"
+        "strings"
+)
+
+type UserXML struct {
+        Id        int    `xml:"id"`
+        FirstName string `xml:"first_name"`
+        LastName  string `xml:"last_name"`
+        Age       int    `xml:"age"`
+        About     string `xml:"about"`
+        Gender    string `xml:"gender"`
+}
+
+type UsersXML struct {
+        Row []UserXML `xml:"row"`
+}
+
+const key string = "secret"
+
+func EncodingJSON(w http.ResponseWriter, error SearchErrorResponse) <span class="cov8" title="1">{
+        w.Header().Add("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        err := json.NewEncoder(w).Encode(error)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "error encoding JSON", http.StatusInternalServerError)
+        }</span>
+}
+
+func SearchServer(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+
+        auth := r.Header.Get("AccessToken")
+        if auth != key </span><span class="cov8" title="1">{
+                http.Error(w, "bad AccessToken", http.StatusUnauthorized)
+                return
+        }</span>
+
+        <span class="cov8" title="1">read, err := os.ReadFile("dataset.xml")
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "error read file", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">var valueOrderBy, valueLimit, valueOffset int
+        users := &amp;UsersXML{}
+        err = xml.Unmarshal([]byte(read), users)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "error parsing XML", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if r.FormValue("order_by") == "" </span><span class="cov0" title="0">{
+                valueOrderBy = 0
+        }</span> else<span class="cov8" title="1"> {
+                valueOrderBy, err = strconv.Atoi(r.FormValue("order_by"))
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "error parsing to int order_by", http.StatusBadRequest)
+                }</span>
+        }
+        <span class="cov8" title="1">if r.FormValue("limit") == "" </span><span class="cov0" title="0">{
+                valueLimit = 10
+        }</span> else<span class="cov8" title="1"> {
+                valueLimit, err = strconv.Atoi(r.FormValue("limit"))
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "error parsing to int limit", http.StatusBadRequest)
+                }</span>
+        }
+        <span class="cov8" title="1">if r.FormValue("offset") == "" </span><span class="cov0" title="0">{
+                valueOffset = 0
+        }</span> else<span class="cov8" title="1"> {
+                valueOffset, err = strconv.Atoi(r.FormValue("offset"))
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "error parsing to int offset", http.StatusBadRequest)
+                }</span>
+        }
+
+        <span class="cov8" title="1">searchReq := SearchRequest{
+                Query:      r.FormValue("query"),
+                OrderField: r.FormValue("order_field"),
+                OrderBy:    valueOrderBy,
+                Limit:      valueLimit,
+                Offset:     valueOffset,
+        }
+
+        searchUsers := make([]UserXML, 0)
+        if searchReq.Query == "" </span><span class="cov8" title="1">{
+                searchUsers = append(searchUsers, users.Row...)
+        }</span> else<span class="cov8" title="1"> {
+                for _, user := range users.Row </span><span class="cov8" title="1">{
+                        name := strings.ToLower(user.FirstName + user.LastName)
+                        searchName := strings.Contains(name, strings.ToLower(searchReq.Query))
+                        searchAbout := strings.Contains(strings.ToLower(user.About), strings.ToLower(searchReq.Query))
+                        if searchName || searchAbout </span><span class="cov8" title="1">{
+                                searchUsers = append(searchUsers, user)
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">if len(searchUsers) == 0 </span><span class="cov8" title="1">{
+                http.Error(w, "error: This substring does not exist", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">switch strings.ToLower(searchReq.OrderField) </span>{
+        case "":<span class="cov8" title="1">
+                switch searchReq.OrderBy </span>{
+                case OrderByDesc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[i].FirstName &lt; searchUsers[j].FirstName }</span>)
+                case OrderByAsIs:<span class="cov0" title="0"></span>
+                case OrderByAsc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[j].FirstName &lt; searchUsers[i].FirstName }</span>)
+                default:<span class="cov8" title="1">
+                        error := SearchErrorResponse{
+                                Error: "wrong order_by",
+                        }
+                        EncodingJSON(w, error)
+                        return</span>
+                }
+        case "name":<span class="cov8" title="1">
+                switch searchReq.OrderBy </span>{
+                case OrderByDesc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[i].FirstName &lt; searchUsers[j].FirstName }</span>)
+                case OrderByAsIs:<span class="cov8" title="1"></span>
+                case OrderByAsc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[j].FirstName &lt; searchUsers[i].FirstName }</span>)
+                default:<span class="cov0" title="0">
+                        error := SearchErrorResponse{
+                                Error: "wrong order_by",
+                        }
+                        EncodingJSON(w, error)
+                        return</span>
+                }
+        case "id":<span class="cov0" title="0">
+                switch searchReq.OrderBy </span>{
+                case OrderByDesc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[i].Id &lt; searchUsers[j].Id }</span>)
+                case OrderByAsIs:<span class="cov0" title="0"></span>
+                case OrderByAsc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[j].Id &lt; searchUsers[i].Id }</span>)
+                default:<span class="cov0" title="0">
+                        error := SearchErrorResponse{
+                                Error: "wrong order_by",
+                        }
+                        EncodingJSON(w, error)
+                        return</span>
+                }
+        case "age":<span class="cov0" title="0">
+                switch searchReq.OrderBy </span>{
+                case OrderByDesc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[i].Age &lt; searchUsers[j].Age }</span>)
+                case OrderByAsIs:<span class="cov0" title="0"></span>
+                case OrderByAsc:<span class="cov0" title="0">
+                        sort.Slice(searchUsers, func(i, j int) bool </span><span class="cov0" title="0">{ return searchUsers[j].Age &lt; searchUsers[i].Age }</span>)
+                default:<span class="cov0" title="0">
+                        error := SearchErrorResponse{
+                                Error: "wrong order_by",
+                        }
+                        EncodingJSON(w, error)
+                        return</span>
+                }
+        default:<span class="cov8" title="1">
+                error := SearchErrorResponse{
+                        Error: "ErrorBadOrderField",
+                }
+                EncodingJSON(w, error)
+                return</span>
+        }
+
+        <span class="cov8" title="1">if searchReq.Offset &gt; len(searchUsers) </span><span class="cov0" title="0">{
+                error := SearchErrorResponse{
+                        Error: "Offset more len(searchslice)",
+                }
+                EncodingJSON(w, error)
+                return
+        }</span>
+        <span class="cov8" title="1">result := searchUsers[searchReq.Offset:]
+        response := []User{}
+        for i, v := range result </span><span class="cov8" title="1">{
+                if i &gt; searchReq.Limit-1 </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">name := v.FirstName + v.LastName
+                response = append(response, User{
+                        Id:     v.Id,
+                        Name:   name,
+                        Age:    v.Age,
+                        Gender: v.Gender,
+                        About:  v.About,
+                })</span>
+        }
+
+        <span class="cov8" title="1">w.Header().Add("Content-Type", "application/json")
+        err = json.NewEncoder(w).Encode(&amp;response)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "error encoding JSON", http.StatusInternalServerError)
+        }</span>
+}
+
+// func main() {
+//         r := chi.NewRouter()
+//         server := http.Server{
+//                 Addr:         ":8080",
+//                 Handler:      r,
+//                 ReadTimeout:  10 * time.Second,
+//                 WriteTimeout: 10 * time.Second,
+//         }
+//         r.Get("/", SearchServer)
+//         fmt.Println("Starting server at :8080")
+//         server.ListenAndServe()
+// }
 </pre>
 		
 		</div>
