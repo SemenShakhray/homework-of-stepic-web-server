@@ -386,11 +386,6 @@ func CreateWrappers(out io.Writer, result *Collection) {
 		p.NameMethod = item.NameMethod
 		p.Reciever = item.Reciever
 		p.Model = result.Model[i].FieldsTags
-		fmt.Println(p)
 		tmpl.Execute(out, p)
 	}
 }
-
-// находясь в папке выше
-// go build -o ./codegen.exe gen/* && ./codegen.exe pack/unkack.go  pack/marshaller.go
-// go run pack/*
