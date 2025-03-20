@@ -2,50 +2,64 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"net/http"
 )
 
-// type Storage struct {
-// 	db *sql.DB
-// }
+type Handler struct {
+	store Storage
+}
 
 func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 
-	store := &Storage{db: db}
+	handler := &Handler{
+		store: Storage{
+			DB: db,
+		},
+	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", store.GetTables)
+	mux.HandleFunc("/", handler.GetListTables)
 
-	return nil, nil
+	return mux, nil
 
 }
 
-// func (s *Storage) GetTables(w http.ResponseWriter, r *http.Request) {
-// 	stmt, err := s.db.Prepare("SHOW TABLES")
-// 	if err != nil {
-// 		log.Println(err)
+func (h *Handler) GetListTables(w http.ResponseWriter, r *http.Request) {
+	resp := h.store.GetListTables()
 
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 		return
-// 	}
+	if resp.Error != nil {
+		if errors.Is(resp.Error, ErrUnknownTable) {
+			w.WriteHeader(http.StatusNotFound)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 
-// 	type CR map[string]interface{}
+			return
+		}
 
-// 	rows, err := stmt.Query()
-// 	if err != nil {
-// 		log.Println(err)
+		if errors.Is(resp.Error, ErrRecordNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer rows.Close()
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
-// 	for rows.Next() {
+		return
+	}
 
-// 	}
-// 	err := rows.Scan()
-
-// }
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
 
 // тут вы пишете код
 // обращаю ваше внимание - в этом задании запрещены глобальные переменные

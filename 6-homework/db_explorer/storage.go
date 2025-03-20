@@ -14,13 +14,13 @@ func NewStore(db *sql.DB) *Storage {
 		DB: db,
 	}
 }
-func (s *Storage) GetTables() *Resp {
+func (s *Storage) GetListTables() *Resp {
 	stmt, err := s.DB.Prepare("SHOW TABLES")
 	if err != nil {
 		log.Println(err)
 
 		return &Resp{
-			Error: err.Error()}
+			Error: err}
 	}
 
 	rows, err := stmt.Query()
@@ -28,7 +28,7 @@ func (s *Storage) GetTables() *Resp {
 		log.Println(err)
 
 		return &Resp{
-			Error: err.Error()}
+			Error: err}
 	}
 	defer rows.Close()
 
@@ -41,7 +41,7 @@ func (s *Storage) GetTables() *Resp {
 			log.Println(err)
 
 			return &Resp{
-				Error: err.Error()}
+				Error: err}
 		}
 
 		tableNames = append(tableNames, tableName)
@@ -51,7 +51,7 @@ func (s *Storage) GetTables() *Resp {
 		log.Println(err)
 
 		return &Resp{
-			Error: err.Error()}
+			Error: err}
 	}
 
 	return &Resp{
