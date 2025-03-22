@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Handler struct {
@@ -21,7 +22,7 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler.GetListTables)
-	mux.HandleFunc("/tables$", handler.GetInfoInTable)
+	mux.HandleFunc("/", handler.GetInfoInTable)
 
 	return mux, nil
 
@@ -39,11 +40,21 @@ func (h *Handler) GetListTables(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request) {
-	var limit, offset int
-	var err error
+	var (
+		limit, offset int
+		err           error
+	)
 
-	tableName := r.FormValue("tableName")
-	if tableName == "" {
+	path := strings.Trim(r.URL.Path, "/")
+	args := strings.Split(path, "/")
+	if len(args) != 1 || args[0] == "" {
+		http.Error(w, ErrUnknownTable.Error(), http.StatusNotFound)
+	}
+	tableName := args[0]
+
+	exisitsTable := h.store.checkExistsTable(tableName)
+
+	if !exisitsTable {
 		http.Error(w, ErrUnknownTable.Error(), http.StatusNotFound)
 
 		return
@@ -55,9 +66,7 @@ func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request) {
 	} else {
 		offset, err = strconv.Atoi(offsetString)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
+			offset = 0
 		}
 
 	}
@@ -68,14 +77,12 @@ func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request) {
 	} else {
 		limit, err = strconv.Atoi(limitString)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
+			limit = 5
 		}
 
 	}
 
-	resp := h.store.GetInfoInTable(limit, offset, tableName)
+	resp := h.store.GetInfoInTable(tableName, limit, offset)
 
 	CheckErrors(w, resp)
 
