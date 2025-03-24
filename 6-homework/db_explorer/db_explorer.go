@@ -19,76 +19,104 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 			DB: db,
 		},
 	}
-
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler.GetListTables)
-	mux.HandleFunc("/", handler.GetInfoInTable)
+	mux.HandleFunc("/", handler.DinamicServe)
 
 	return mux, nil
 
 }
 
-func (h *Handler) GetListTables(w http.ResponseWriter, r *http.Request) {
-	resp := h.store.GetListTables()
+func (h *Handler) DinamicServe(w http.ResponseWriter, r *http.Request) {
 
-	CheckErrors(w, resp)
+	path := strings.Trim(r.URL.Path, "/")
+	if path == "" {
+		h.GetListTables(w, r)
 
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	arr := strings.Split(path, "/")
+	switch r.Method {
+	case http.MethodGet:
+		if len(arr) == 1 {
+			h.GetInfoInTable(w, r, arr)
+		}
 	}
 }
 
-func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetListTables(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.store.GetListTables()
+
+	if err != nil {
+		code := CheckErrors(err)
+
+		responseError(w, err, code)
+
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request, arr []string) {
 	var (
-		limit, offset int
-		err           error
+		limit, offset = 5, 0
 	)
 
-	path := strings.Trim(r.URL.Path, "/")
-	args := strings.Split(path, "/")
-	if len(args) != 1 || args[0] == "" {
-		http.Error(w, ErrUnknownTable.Error(), http.StatusNotFound)
+	if arr[0] == "" {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
 	}
-	tableName := args[0]
+	tableName := arr[0]
 
 	exisitsTable := h.store.checkExistsTable(tableName)
 
 	if !exisitsTable {
-		http.Error(w, ErrUnknownTable.Error(), http.StatusNotFound)
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
 
 		return
 	}
 
 	offsetString := r.FormValue("offset")
-	if offsetString == "" {
-		offset = 0
-	} else {
-		offset, err = strconv.Atoi(offsetString)
-		if err != nil {
-			offset = 0
-		}
-
+	if offsetString != "" {
+		offset, _ = strconv.Atoi(offsetString)
 	}
 
 	limitString := r.FormValue("limit")
-	if limitString == "" {
-		limit = 5
-	} else {
-		limit, err = strconv.Atoi(limitString)
-		if err != nil {
-			limit = 5
-		}
-
+	if limitString != "" {
+		limit, _ = strconv.Atoi(limitString)
 	}
 
-	resp := h.store.GetInfoInTable(tableName, limit, offset)
+	resp, err := h.store.GetInfoInTable(tableName, limit, offset)
 
-	CheckErrors(w, resp)
+	if err != nil {
+		code := CheckErrors(err)
+		responseError(w, err, code)
 
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func responseError(w http.ResponseWriter, err error, code int) {
+	resp := Resp{
+		Error: err.Error(),
+	}
+
+	w.WriteHeader(code)
+	Err := json.NewEncoder(w).Encode(resp)
+	if Err != nil {
+		http.Error(w, Err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func responseOK(w http.ResponseWriter, resp interface{}) {
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	Err := json.NewEncoder(w).Encode(resp)
+	if Err != nil {
+		http.Error(w, Err.Error(), http.StatusInternalServerError)
 	}
 }
 

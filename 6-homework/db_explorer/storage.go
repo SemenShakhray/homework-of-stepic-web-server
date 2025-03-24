@@ -16,21 +16,20 @@ func NewStore(db *sql.DB) *Storage {
 		DB: db,
 	}
 }
-func (s *Storage) GetListTables() *Resp {
+func (s *Storage) GetListTables() (*Resp, error) {
 	stmt, err := s.DB.Prepare("SHOW TABLES")
 	if err != nil {
 		log.Println(err)
 
-		return &Resp{
-			Error: err}
+		return nil, err
+
 	}
 
 	rows, err := stmt.Query()
 	if err != nil {
 		log.Println(err)
 
-		return &Resp{
-			Error: err}
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -42,8 +41,7 @@ func (s *Storage) GetListTables() *Resp {
 		if err != nil {
 			log.Println(err)
 
-			return &Resp{
-				Error: err}
+			return nil, err
 		}
 
 		tableNames = append(tableNames, tableName)
@@ -52,25 +50,23 @@ func (s *Storage) GetListTables() *Resp {
 	if err := rows.Err(); err != nil {
 		log.Println(err)
 
-		return &Resp{
-			Error: err}
+		return nil, err
 	}
 
 	return &Resp{
 		Response: map[string]interface{}{
 			"tables": tableNames,
 		},
-	}
+	}, nil
 }
 
-func (s *Storage) GetInfoInTable(tableName string, offset, limit int) *Resp {
+func (s *Storage) GetInfoInTable(tableName string, offset, limit int) (*Resp, error) {
 
-	stmt, err := s.DB.Prepare("SELECT * FROM" + tableName + "LIMIT ? OFFSET ?")
+	stmt, err := s.DB.Prepare("SELECT * FROM " + tableName + " LIMIT ? OFFSET ?")
 	if err != nil {
 		log.Println(err)
 
-		return &Resp{
-			Error: err}
+		return nil, err
 	}
 
 	rows, err := stmt.Query(limit, offset)
@@ -78,13 +74,10 @@ func (s *Storage) GetInfoInTable(tableName string, offset, limit int) *Resp {
 		if errors.Is(err, fmt.Errorf("%s doesn't exist", tableName)) {
 			log.Println(err)
 
-			return &Resp{
-				Error: ErrUnknownTable}
+			return nil, ErrUnknownTable
 		}
 
-		return &Resp{
-			Error: err,
-		}
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -93,8 +86,7 @@ func (s *Storage) GetInfoInTable(tableName string, offset, limit int) *Resp {
 	if err != nil {
 		log.Println(err)
 
-		return &Resp{
-			Error: err}
+		return nil, err
 	}
 
 	var values []interface{}
@@ -109,8 +101,7 @@ func (s *Storage) GetInfoInTable(tableName string, offset, limit int) *Resp {
 		if err != nil {
 			log.Println(err)
 
-			return &Resp{
-				Error: err}
+			return nil, err
 		}
 
 		for i, col := range values {
@@ -129,28 +120,19 @@ func (s *Storage) GetInfoInTable(tableName string, offset, limit int) *Resp {
 			"columns": columns,
 			"values":  values,
 		},
-	}
+	}, nil
 
 }
 
 func (s *Storage) checkExistsTable(tableName string) bool {
-	stmt, err := s.DB.Prepare("SHOW TABLES LIKE ?")
-	if err != nil {
-		log.Println(err)
 
-		return false
-	}
-
-	rows, err := stmt.Query(tableName)
+	query := fmt.Sprintf("SHOW TABLES LIKE '%s'", tableName)
+	rows, err := s.DB.Query(query)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		return true
-	}
-
-	return false
+	return rows.Next()
 }
