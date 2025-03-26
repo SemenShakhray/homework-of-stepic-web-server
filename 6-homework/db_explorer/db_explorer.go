@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,6 +41,9 @@ func (h *Handler) DinamicServe(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		if len(arr) == 1 {
 			h.GetInfoInTable(w, r, arr)
+		}
+		if len(arr) == 2 {
+			h.GetInfoRecord(w, r, arr)
 		}
 	}
 }
@@ -92,6 +96,44 @@ func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request, arr []s
 
 	if err != nil {
 		code := CheckErrors(err)
+		responseError(w, err, code)
+
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func (h *Handler) GetInfoRecord(w http.ResponseWriter, r *http.Request, arr []string) {
+	if arr[0] == "" {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+	tableName := arr[0]
+
+	exisitsTable := h.store.checkExistsTable(tableName)
+
+	if !exisitsTable {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+
+	if arr[1] == "" {
+		responseError(w, ErrRecordNotFound, http.StatusNotFound)
+
+		return
+	}
+	id, err := strconv.Atoi(arr[1])
+	if err != nil {
+		responseError(w, fmt.Errorf("failed id"), http.StatusBadRequest)
+	}
+
+	resp, err := h.store.GetInfoRecord(tableName, id)
+	if err != nil {
+		code := CheckErrors(err)
+
 		responseError(w, err, code)
 
 		return

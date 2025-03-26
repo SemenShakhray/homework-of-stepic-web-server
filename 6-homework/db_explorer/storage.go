@@ -60,16 +60,10 @@ func (s *Storage) GetListTables() (*Resp, error) {
 	}, nil
 }
 
-func (s *Storage) GetInfoInTable(tableName string, offset, limit int) (*Resp, error) {
+func (s *Storage) GetInfoInTable(tableName string, limit, offset int) (*Resp, error) {
+	query := fmt.Sprintf("SELECT * FROM %s LIMIT ? OFFSET ?", tableName)
 
-	stmt, err := s.DB.Prepare("SELECT * FROM " + tableName + " LIMIT ? OFFSET ?")
-	if err != nil {
-		log.Println(err)
-
-		return nil, err
-	}
-
-	rows, err := stmt.Query(limit, offset)
+	rows, err := s.DB.Query(query, limit, offset)
 	if err != nil {
 		if errors.Is(err, fmt.Errorf("%s doesn't exist", tableName)) {
 			log.Println(err)
@@ -81,47 +75,115 @@ func (s *Storage) GetInfoInTable(tableName string, offset, limit int) (*Resp, er
 	}
 	defer rows.Close()
 
-	var columns []string
-	columns, err = rows.Columns()
+	namesColumns, err := rows.Columns()
 	if err != nil {
-		log.Println(err)
-
+		log.Println("Error when getting column names:", err)
 		return nil, err
 	}
 
-	var values []interface{}
-	values = make([]interface{}, len(columns))
-	scanArgs := make([]interface{}, len(values))
-	for i := range values {
-		scanArgs[i] = &values[i]
+	countColumns := len(namesColumns)
+
+	result := make([]map[string]interface{}, 0)
+
+	tempLineInterface := make([]interface{}, countColumns)
+
+	pTempLineInterface := make([]interface{}, countColumns)
+	for i := 0; i < countColumns; i++ {
+		pTempLineInterface[i] = &tempLineInterface[i]
 	}
 
-	for rows.Next() {
-		err = rows.Scan(scanArgs...)
-		if err != nil {
-			log.Println(err)
+	tempLine := make([]interface{}, countColumns)
 
+	// Обрабатываем строки данных
+	for rows.Next() {
+		resMap := make(map[string]interface{}, countColumns)
+
+		err := rows.Scan(pTempLineInterface...)
+		if err != nil {
+			log.Println("failed scanning string:", err)
 			return nil, err
 		}
 
-		for i, col := range values {
-			if col != nil {
-				if value, ok := col.([]byte); ok {
-					values[i] = string(value)
-				} else {
-					values[i] = col
-				}
+		for i, value := range tempLineInterface {
+			switch value.(type) {
+			case []byte:
+				tempLine[i] = string(value.([]byte))
+			default:
+				tempLine[i] = *(pTempLineInterface[i].(*interface{}))
 			}
+			resMap[namesColumns[i]] = tempLine[i]
+		}
+		result = append(result, resMap)
+	}
+
+	return &Resp{
+		Response: map[string]interface{}{
+			"records": result,
+		},
+	}, nil
+
+}
+
+func (s *Storage) GetInfoRecord(tableName string, id int) (*Resp, error) {
+	query := fmt.Sprintf("SELECT * FROM %s LIMIT 1", tableName)
+
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		if errors.Is(err, fmt.Errorf("%s doesn't exist", tableName)) {
+			log.Println(err)
+
+			return nil, ErrUnknownTable
+		}
+		return nil, err
+	}
+
+	namesColumns, err := rows.Columns()
+	if err != nil {
+		log.Println("Error when getting column names:", err)
+		return nil, err
+	}
+	rows.Close()
+
+	countColumns := len(namesColumns)
+
+	resMap := make(map[string]interface{})
+	tempLine := make([]interface{}, countColumns)
+	pTempLine := make([]interface{}, countColumns)
+
+	for i, _ := range tempLine {
+		pTempLine[i] = &tempLine[i]
+	}
+
+	query = fmt.Sprintf("SELECT * FROM %s where id = ?", tableName)
+	row := s.DB.QueryRow(query, id)
+
+	err = row.Scan(pTempLine...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Println("record don't exists")
+
+			return nil, ErrRecordNotFound
+		} else {
+			log.Println("failed scanning record")
+
+			return nil, err
+		}
+	}
+
+	for i, value := range tempLine {
+		switch value.(type) {
+		case []byte:
+			resMap[namesColumns[i]] = string(value.([]byte))
+		default:
+			resMap[namesColumns[i]] = *(pTempLine[i].(*interface{}))
 		}
 	}
 
 	return &Resp{
 		Response: map[string]interface{}{
-			"columns": columns,
-			"values":  values,
+			"record": resMap,
 		},
 	}, nil
-
 }
 
 func (s *Storage) checkExistsTable(tableName string) bool {
