@@ -5,7 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 )
+
+type infoTable struct {
+	Field   string
+	Type    string
+	Null    string
+	Default *string
+	Extra   string
+}
 
 type Storage struct {
 	DB *sql.DB
@@ -116,6 +125,12 @@ func (s *Storage) GetInfoInTable(tableName string, limit, offset int) (*Resp, er
 		result = append(result, resMap)
 	}
 
+	if err := rows.Err(); err != nil {
+		log.Println("failed scanning string:", err)
+
+		return nil, err
+	}
+
 	return &Resp{
 		Response: map[string]interface{}{
 			"records": result,
@@ -182,6 +197,115 @@ func (s *Storage) GetInfoRecord(tableName string, id int) (*Resp, error) {
 	return &Resp{
 		Response: map[string]interface{}{
 			"record": resMap,
+		},
+	}, nil
+}
+
+func (s *Storage) AddItem(data map[string]interface{}, tableName string) (*Resp, error) {
+	// var infoFull []infoTable
+
+	// query := fmt.Sprintf("SHOW FULL COLUMNS FROM %s", tableName)
+	// rows, err := s.DB.Query(query)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer rows.Close()
+
+	// for rows.Next() {
+	// 	var info infoTable
+	// 	err := rows.Scan(&info.Field, &info.Type, new(interface{}), &info.Null, new(interface{}), &info.Default, &info.Extra, new(interface{}), new(interface{}))
+	// 	if err != nil {
+	// 		log.Println("failed scanning string:", err)
+	// 		return nil, err
+	// 	}
+	// 	infoFull = append(infoFull, info)
+	// }
+
+	// if err := rows.Err(); err != nil {
+	// 	log.Println("failed scanning string:", err)
+	// 	return nil, err
+	// }
+
+	// log.Println(infoFull)
+
+	var keys, placeHolders []string
+	var values []interface{}
+
+	for key, value := range data {
+		if key == "id" {
+			continue
+		} else {
+			keys = append(keys, key)
+			values = append(values, value)
+		}
+	}
+
+	for i := 0; i < len(keys); i++ {
+		placeHolders = append(placeHolders, "?")
+	}
+	log.Println(tableName, keys, placeHolders, values)
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", tableName, strings.Join(keys, ","), strings.Join(placeHolders, ","))
+
+	log.Println(query)
+
+	row, err := s.DB.Exec(query, values...)
+	if err != nil {
+		log.Println("failed add record: ", err)
+
+		return nil, err
+	}
+
+	id, err := row.LastInsertId()
+	if err != nil {
+		log.Println("don't received id: ", err)
+
+		return nil, err
+	}
+
+	return &Resp{
+		Response: map[string]interface{}{
+			"id": id,
+		},
+	}, nil
+}
+
+func (s *Storage) UpdateRecord(tableName string, data map[string]any, id int) (*Resp, error) {
+	var keys []string
+	var values []any
+
+	for key, value := range data {
+		log.Printf("key: %s, value: %v, type: %T", key, value, value)
+		if key == "id" {
+			return nil, fmt.Errorf("field id have invalid type")
+		} else {
+			keys = append(keys, key+"=?")
+			values = append(values, value)
+		}
+	}
+	values = append(values, id)
+
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = ?", tableName, strings.Join(keys, ","))
+	log.Println(query)
+
+	row, err := s.DB.Exec(query, values...)
+	if err != nil {
+		log.Println("failed update record: ", err)
+
+		return nil, err
+	}
+
+	count, err := row.RowsAffected()
+	if err != nil {
+		if err != nil {
+			log.Println("no updates: ", err)
+
+			return nil, err
+		}
+	}
+
+	return &Resp{
+		Response: map[string]any{
+			"updated": count,
 		},
 	}, nil
 }

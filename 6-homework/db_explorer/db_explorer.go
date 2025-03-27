@@ -43,8 +43,14 @@ func (h *Handler) DinamicServe(w http.ResponseWriter, r *http.Request) {
 			h.GetInfoInTable(w, r, arr)
 		}
 		if len(arr) == 2 {
-			h.GetInfoRecord(w, r, arr)
+			h.GetInfoRecord(w, arr)
 		}
+	case http.MethodPut:
+		h.AddNewRecord(w, r, arr)
+	case http.MethodPost:
+		h.UpdateRecord(w, r, arr)
+	default:
+		responseError(w, fmt.Errorf("unknown request"), http.StatusBadRequest)
 	}
 }
 
@@ -104,7 +110,7 @@ func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request, arr []s
 	responseOK(w, resp)
 }
 
-func (h *Handler) GetInfoRecord(w http.ResponseWriter, r *http.Request, arr []string) {
+func (h *Handler) GetInfoRecord(w http.ResponseWriter, arr []string) {
 	if arr[0] == "" {
 		responseError(w, ErrUnknownTable, http.StatusNotFound)
 
@@ -131,6 +137,103 @@ func (h *Handler) GetInfoRecord(w http.ResponseWriter, r *http.Request, arr []st
 	}
 
 	resp, err := h.store.GetInfoRecord(tableName, id)
+	if err != nil {
+		code := CheckErrors(err)
+
+		responseError(w, err, code)
+
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func (h *Handler) AddNewRecord(w http.ResponseWriter, r *http.Request, arr []string) {
+	if arr[0] == "" {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+	tableName := arr[0]
+
+	exisitsTable := h.store.checkExistsTable(tableName)
+
+	if !exisitsTable {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+
+	var body interface{}
+
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		responseError(w, err, http.StatusBadRequest)
+
+		return
+	}
+
+	data, ok := body.(map[string]interface{})
+	if !ok {
+		responseError(w, fmt.Errorf("failed request"), http.StatusBadRequest)
+
+		return
+	}
+
+	resp, err := h.store.AddItem(data, tableName)
+	if err != nil {
+		code := CheckErrors(err)
+
+		responseError(w, err, code)
+
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func (h *Handler) UpdateRecord(w http.ResponseWriter, r *http.Request, arr []string) {
+	if arr[0] == "" {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+	tableName := arr[0]
+
+	exisitsTable := h.store.checkExistsTable(tableName)
+
+	if !exisitsTable {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+
+	if arr[1] == "" {
+		responseError(w, ErrRecordNotFound, http.StatusNotFound)
+
+		return
+	}
+	id, err := strconv.Atoi(arr[1])
+	if err != nil {
+		responseError(w, fmt.Errorf("failed id"), http.StatusBadRequest)
+	}
+
+	var body any
+	err = json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		responseError(w, err, http.StatusBadRequest)
+
+		return
+	}
+
+	data, ok := body.(map[string]interface{})
+	if !ok {
+		responseError(w, fmt.Errorf("failed request"), http.StatusBadRequest)
+
+		return
+	}
+
+	resp, err := h.store.UpdateRecord(tableName, data, id)
 	if err != nil {
 		code := CheckErrors(err)
 
