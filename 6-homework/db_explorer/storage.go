@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 )
 
@@ -154,7 +155,7 @@ func (s *Storage) GetInfoRecord(tableName string, id int) (*Resp, error) {
 
 	namesColumns, err := rows.Columns()
 	if err != nil {
-		log.Println("Error when getting column names:", err)
+		log.Println("failed getting column names:", err)
 		return nil, err
 	}
 	rows.Close()
@@ -169,7 +170,12 @@ func (s *Storage) GetInfoRecord(tableName string, id int) (*Resp, error) {
 		pTempLine[i] = &tempLine[i]
 	}
 
-	query = fmt.Sprintf("SELECT * FROM %s where id = ?", tableName)
+	idString, err := s.NameFieldWithID(tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	query = fmt.Sprintf("SELECT * FROM %s where %s = ?", tableName, idString)
 	row := s.DB.QueryRow(query, id)
 
 	err = row.Scan(pTempLine...)
@@ -202,37 +208,21 @@ func (s *Storage) GetInfoRecord(tableName string, id int) (*Resp, error) {
 }
 
 func (s *Storage) AddItem(data map[string]interface{}, tableName string) (*Resp, error) {
-	// var infoFull []infoTable
-
-	// query := fmt.Sprintf("SHOW FULL COLUMNS FROM %s", tableName)
-	// rows, err := s.DB.Query(query)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer rows.Close()
-
-	// for rows.Next() {
-	// 	var info infoTable
-	// 	err := rows.Scan(&info.Field, &info.Type, new(interface{}), &info.Null, new(interface{}), &info.Default, &info.Extra, new(interface{}), new(interface{}))
-	// 	if err != nil {
-	// 		log.Println("failed scanning string:", err)
-	// 		return nil, err
-	// 	}
-	// 	infoFull = append(infoFull, info)
-	// }
-
-	// if err := rows.Err(); err != nil {
-	// 	log.Println("failed scanning string:", err)
-	// 	return nil, err
-	// }
-
-	// log.Println(infoFull)
+	err := s.checkTypeParamRequest(tableName, data)
+	if err != nil {
+		return nil, err
+	}
 
 	var keys, placeHolders []string
 	var values []interface{}
 
+	idString, err := s.NameFieldWithID(tableName)
+	if err != nil {
+		return nil, err
+	}
+
 	for key, value := range data {
-		if key == "id" {
+		if key == idString {
 			continue
 		} else {
 			keys = append(keys, key)
@@ -270,13 +260,23 @@ func (s *Storage) AddItem(data map[string]interface{}, tableName string) (*Resp,
 }
 
 func (s *Storage) UpdateRecord(tableName string, data map[string]any, id int) (*Resp, error) {
+	err := s.checkTypeParamRequest(tableName, data)
+	if err != nil {
+		return nil, err
+	}
+
 	var keys []string
 	var values []any
 
+	idString, err := s.NameFieldWithID(tableName)
+	if err != nil {
+		return nil, err
+	}
+
 	for key, value := range data {
 		log.Printf("key: %s, value: %v, type: %T", key, value, value)
-		if key == "id" {
-			return nil, fmt.Errorf("field id have invalid type")
+		if key == idString {
+			return nil, fmt.Errorf("field %s have invalid type", idString)
 		} else {
 			keys = append(keys, key+"=?")
 			values = append(values, value)
@@ -284,7 +284,7 @@ func (s *Storage) UpdateRecord(tableName string, data map[string]any, id int) (*
 	}
 	values = append(values, id)
 
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = ?", tableName, strings.Join(keys, ","))
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s = ?", tableName, strings.Join(keys, ","), idString)
 	log.Println(query)
 
 	row, err := s.DB.Exec(query, values...)
@@ -310,6 +310,84 @@ func (s *Storage) UpdateRecord(tableName string, data map[string]any, id int) (*
 	}, nil
 }
 
+func (s *Storage) DeleteRecord(tableName string, id int) (*Resp, error) {
+	idString, err := s.NameFieldWithID(tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", tableName, idString)
+	row, err := s.DB.Exec(query, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	count, err := row.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Resp{
+		Response: map[string]interface{}{
+			"deleted": count,
+		},
+	}, nil
+}
+
+func (s *Storage) checkTypeParamRequest(tableName string, data map[string]interface{}) error {
+	sqlToGoTypeMap := map[string]reflect.Kind{
+		"VARCHAR": reflect.String,
+		"TEXT":    reflect.String,
+		"CHAR":    reflect.String,
+		"INT":     reflect.Int,
+		"FLOAT":   reflect.Float64,
+	}
+
+	query := fmt.Sprintf("SELECT * FROM %s LIMIT 1", tableName)
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		log.Println("failed request DB: ", err)
+
+		return err
+	}
+	defer rows.Close()
+
+	columnInfo, err := rows.ColumnTypes()
+	if err != nil {
+		log.Println("failed reseived info of columns: ", err)
+
+		return err
+	}
+
+	for _, col := range columnInfo {
+		colType := col.DatabaseTypeName()
+
+		if v, ok := data[col.Name()]; ok {
+			if data[col.Name()] == nil {
+				nullable, _ := col.Nullable()
+				if !nullable {
+					return fmt.Errorf("field %s have invalid type", col.Name())
+				}
+				continue
+			}
+
+			switch reflect.TypeOf(v).Kind() {
+			case reflect.Float64:
+				v = int(v.(float64))
+			}
+			log.Println("colNAme:", col.Name(), "typeV:", reflect.TypeOf(v), "colType:", colType)
+			if reflect.TypeOf(v).Kind() != sqlToGoTypeMap[colType] {
+				return fmt.Errorf("field %s have invalid type", col.Name())
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *Storage) checkExistsTable(tableName string) bool {
 
 	query := fmt.Sprintf("SHOW TABLES LIKE '%s'", tableName)
@@ -321,4 +399,24 @@ func (s *Storage) checkExistsTable(tableName string) bool {
 	defer rows.Close()
 
 	return rows.Next()
+}
+
+func (s *Storage) NameFieldWithID(tableName string) (string, error) {
+	query := fmt.Sprintf("SELECT * FROM %s LIMIT 1", tableName)
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		log.Println("failed request DB: ", err)
+
+		return "", err
+	}
+	defer rows.Close()
+
+	columnName, err := rows.Columns()
+	if err != nil {
+		log.Println("failed reseived info of columns: ", err)
+
+		return "", err
+	}
+
+	return columnName[0], nil
 }

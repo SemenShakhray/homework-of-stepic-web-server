@@ -49,6 +49,8 @@ func (h *Handler) DinamicServe(w http.ResponseWriter, r *http.Request) {
 		h.AddNewRecord(w, r, arr)
 	case http.MethodPost:
 		h.UpdateRecord(w, r, arr)
+	case http.MethodDelete:
+		h.DeleteRecord(w, r, arr)
 	default:
 		responseError(w, fmt.Errorf("unknown request"), http.StatusBadRequest)
 	}
@@ -239,6 +241,43 @@ func (h *Handler) UpdateRecord(w http.ResponseWriter, r *http.Request, arr []str
 
 		responseError(w, err, code)
 
+		return
+	}
+
+	responseOK(w, resp)
+}
+
+func (h *Handler) DeleteRecord(w http.ResponseWriter, r *http.Request, arr []string) {
+	if arr[0] == "" {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+	tableName := arr[0]
+
+	exisitsTable := h.store.checkExistsTable(tableName)
+
+	if !exisitsTable {
+		responseError(w, ErrUnknownTable, http.StatusNotFound)
+
+		return
+	}
+
+	if arr[1] == "" {
+		responseError(w, ErrRecordNotFound, http.StatusNotFound)
+
+		return
+	}
+	id, err := strconv.Atoi(arr[1])
+	if err != nil {
+		responseError(w, fmt.Errorf("failed id"), http.StatusBadRequest)
+	}
+
+	resp, err := h.store.DeleteRecord(tableName, id)
+	if err != nil {
+		code := CheckErrors(err)
+
+		responseError(w, err, code)
 		return
 	}
 

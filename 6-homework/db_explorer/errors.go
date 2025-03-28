@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -14,6 +15,7 @@ var (
 )
 
 func CheckErrors(err error) int {
+	log.Println(err)
 	if errors.Is(err, ErrUnknownTable) {
 		return http.StatusNotFound
 	}

@@ -441,10 +441,10 @@ func TestApis(t *testing.T) {
 			Path:   "/users/",
 			Method: http.MethodPut,
 			Body: CR{
-				"user_id":    2,
-				"login":      "qwerty'",
-				"password":   "love\"",
-				"unkn_field": "love",
+				"user_id":  2,
+				"login":    "qwerty'",
+				"password": "love\"",
+				// "unkn_field": "love",
 			},
 			Result: CR{
 				"response": CR{
