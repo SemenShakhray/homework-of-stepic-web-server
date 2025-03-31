@@ -95,7 +95,7 @@ func TestApis(t *testing.T) {
 	PrepareTestApis(db)
 
 	// возможно вам будет удобно закомментировать это чтобы смотреть результат после теста
-	// defer CleanupTestApis(db)
+	defer CleanupTestApis(db)
 
 	handler, err := NewDbExplorer(db)
 	if err != nil {
@@ -437,14 +437,14 @@ func TestApis(t *testing.T) {
 			},
 		},
 		// не забываем про sql-инъекции
-		Case{
+		Case{ //26
 			Path:   "/users/",
 			Method: http.MethodPut,
 			Body: CR{
-				"user_id":  2,
-				"login":    "qwerty'",
-				"password": "love\"",
-				// "unkn_field": "love",
+				"user_id":    2,
+				"login":      "qwerty'",
+				"password":   "love\"",
+				"unkn_field": "love",
 			},
 			Result: CR{
 				"response": CR{

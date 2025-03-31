@@ -73,6 +73,7 @@ func (h *Handler) GetListTables(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request, arr []string) {
 	var (
 		limit, offset = 5, 0
+		err           error
 	)
 
 	if arr[0] == "" {
@@ -92,12 +93,19 @@ func (h *Handler) GetInfoInTable(w http.ResponseWriter, r *http.Request, arr []s
 
 	offsetString := r.FormValue("offset")
 	if offsetString != "" {
-		offset, _ = strconv.Atoi(offsetString)
+		offset, err = strconv.Atoi(offsetString)
+		if err != nil {
+			offset = 0
+		}
+
 	}
 
 	limitString := r.FormValue("limit")
 	if limitString != "" {
-		limit, _ = strconv.Atoi(limitString)
+		limit, err = strconv.Atoi(limitString)
+		if err != nil {
+			limit = 5
+		}
 	}
 
 	resp, err := h.store.GetInfoInTable(tableName, limit, offset)
@@ -182,7 +190,9 @@ func (h *Handler) AddNewRecord(w http.ResponseWriter, r *http.Request, arr []str
 		return
 	}
 
-	resp, err := h.store.AddItem(data, tableName)
+	method := r.Method
+
+	resp, err := h.store.AddItem(data, tableName, method)
 	if err != nil {
 		code := CheckErrors(err)
 
@@ -235,7 +245,9 @@ func (h *Handler) UpdateRecord(w http.ResponseWriter, r *http.Request, arr []str
 		return
 	}
 
-	resp, err := h.store.UpdateRecord(tableName, data, id)
+	method := r.Method
+
+	resp, err := h.store.UpdateRecord(data, tableName, method, id)
 	if err != nil {
 		code := CheckErrors(err)
 
