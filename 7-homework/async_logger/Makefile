@@ -1,8 +1,8 @@
 .PHONY: install gen test
 
 install:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 gen: check-env
 	protoc --version # 3.19.3
