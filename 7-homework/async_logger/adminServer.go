@@ -1,19 +1,47 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type adminServer struct {
 	UnimplementedAdminServer
-	subs *Subscriber
+	subs *subscriber
 }
 
-func newAdminServer(subs *Subscriber) *adminServer {
+type subscriber struct {
+	id   int
+	mu   *sync.RWMutex
+	subs map[int]chan *Event
+}
+
+type statCollector struct {
+	mu   sync.RWMutex
+	stat *Stat
+}
+
+type authACL struct {
+	acl map[string][]string
+}
+
+type middleware struct {
+	serverOptions []grpc.ServerOption
+	auth          *authACL
+	subs          *subscriber
+}
+
+func newAdminServer(subs *subscriber) *adminServer {
 	return &adminServer{
 		subs: subs,
 	}
@@ -59,20 +87,14 @@ func (a *adminServer) Statistics(i *StatInterval, srv Admin_StatisticsServer) er
 	}
 }
 
-type Subscriber struct {
-	id   int
-	mu   *sync.RWMutex
-	subs map[int]chan *Event
-}
-
-func newSubscriber() *Subscriber {
-	return &Subscriber{
+func newSubscriber() *subscriber {
+	return &subscriber{
 		mu:   &sync.RWMutex{},
 		subs: make(map[int]chan *Event),
 	}
 }
 
-func (s *Subscriber) Attach() (int, chan *Event) {
+func (s *subscriber) Attach() (int, chan *Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -82,7 +104,7 @@ func (s *Subscriber) Attach() (int, chan *Event) {
 	return s.id, s.subs[s.id]
 }
 
-func (s *Subscriber) Notify(e *Event) {
+func (s *subscriber) Notify(e *Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -91,7 +113,7 @@ func (s *Subscriber) Notify(e *Event) {
 	}
 }
 
-func (s *Subscriber) Dettach(id int) {
+func (s *subscriber) Dettach(id int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -101,7 +123,7 @@ func (s *Subscriber) Dettach(id int) {
 	}
 }
 
-func (s *Subscriber) DettachAll() {
+func (s *subscriber) DettachAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -109,11 +131,6 @@ func (s *Subscriber) DettachAll() {
 		close(sub)
 		delete(s.subs, id)
 	}
-}
-
-type statCollector struct {
-	mu   sync.RWMutex
-	stat *Stat
 }
 
 func newStatCollector() *statCollector {
@@ -151,10 +168,6 @@ func (s *statCollector) Collect() *Stat {
 	return stat
 }
 
-type authACL struct {
-	acl map[string][]string
-}
-
 func newAuth(aclData string) (*authACL, error) {
 	aclParsed := make(map[string][]string)
 
@@ -186,6 +199,29 @@ nextMethod:
 			}
 			break nextMethod
 		}
+	}
+	return nil
+}
+
+func (m *middleware) Do(ctx context.Context, method string) error {
+	var consumer, host string
+
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	consumer = strings.Join(md.Get("consumer"), "")
+	if p, ok := peer.FromContext(ctx); ok {
+		host = p.Addr.String()
+	}
+
+	m.subs.Notify(&Event{
+		Method:    method,
+		Consumer:  consumer,
+		Host:      host,
+		Timestamp: time.Now().Unix(),
+	})
+
+	if err := m.auth.Check(consumer, method); err != nil {
+		status.Errorf(codes.Unauthenticated, "failed authorization")
 	}
 	return nil
 }
