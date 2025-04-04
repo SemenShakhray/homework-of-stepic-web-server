@@ -1,18 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/status"
 )
 
 type adminServer struct {
@@ -33,12 +26,6 @@ type statCollector struct {
 
 type authACL struct {
 	acl map[string][]string
-}
-
-type middleware struct {
-	serverOptions []grpc.ServerOption
-	auth          *authACL
-	subs          *subscriber
 }
 
 func newAdminServer(subs *subscriber) *adminServer {
@@ -183,45 +170,21 @@ func newAuth(aclData string) (*authACL, error) {
 	return auth, nil
 }
 
-func (auth *authACL) Check(consumer, method string) error {
+func (auth *authACL) Check(consumer, method string) bool {
 	methods := strings.Split(method, "/")
 
-	m, ok := auth.acl[consumer]
-	if !ok {
-		return fmt.Errorf("failed authorization")
-	}
+	if m, ok := auth.acl[consumer]; ok {
 
-nextMethod:
-	for _, mthd := range m {
-		for i, p := range strings.Split(mthd, "/") {
-			if len(methods) > i && (p == methods[i] || p == "*") {
-				continue
+	nextMethod:
+		for _, mthd := range m {
+			for i, p := range strings.Split(mthd, "/") {
+				if len(methods) > i && (p == methods[i] || p == "*") {
+					continue
+				}
+				break nextMethod
 			}
-			break nextMethod
+			return true
 		}
 	}
-	return nil
-}
-
-func (m *middleware) Do(ctx context.Context, method string) error {
-	var consumer, host string
-
-	md, _ := metadata.FromIncomingContext(ctx)
-
-	consumer = strings.Join(md.Get("consumer"), "")
-	if p, ok := peer.FromContext(ctx); ok {
-		host = p.Addr.String()
-	}
-
-	m.subs.Notify(&Event{
-		Method:    method,
-		Consumer:  consumer,
-		Host:      host,
-		Timestamp: time.Now().Unix(),
-	})
-
-	if err := m.auth.Check(consumer, method); err != nil {
-		status.Errorf(codes.Unauthenticated, "failed authorization")
-	}
-	return nil
+	return false
 }

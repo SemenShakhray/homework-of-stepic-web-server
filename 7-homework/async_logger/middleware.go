@@ -19,7 +19,7 @@ type middleware struct {
 }
 
 func newMiddleware(auth *authACL, subs *subscriber) *middleware {
-	mid := middleware{
+	mid := &middleware{
 		auth: auth,
 		subs: subs,
 	}
@@ -28,6 +28,7 @@ func newMiddleware(auth *authACL, subs *subscriber) *middleware {
 		grpc.StreamInterceptor(mid.streamInterceptor),
 	}
 
+	return mid
 }
 
 func (m *middleware) Do(ctx context.Context, method string) error {
@@ -47,9 +48,10 @@ func (m *middleware) Do(ctx context.Context, method string) error {
 		Timestamp: time.Now().Unix(),
 	})
 
-	if err := m.auth.Check(consumer, method); err != nil {
-		status.Errorf(codes.Unauthenticated, "failed authorization")
+	if !m.auth.Check(consumer, method) {
+		return status.Errorf(codes.Unauthenticated, "failed authorization")
 	}
+
 	return nil
 }
 
