@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 )
 
@@ -23,24 +24,24 @@ type Complex struct {
 }
 
 func i2s(data interface{}, out interface{}) error {
-	dataType := reflect.TypeOf(data).Kind()
-
-	fmt.Println(dataType)
-	// middleMap := make(map[string]any)
-	// dataMap, ok := data.(map[string]any)
-	// if !ok {
-	// 	return fmt.Errorf("failed type")
-	// }
-	// // for k, v := range dataMap {
-	// // 	fmt.Println(k, v)
-	// // }
-	// dataInter := dataMap.(reflect.Value)
-	// bytesData := dataInter.Bytes()
-	// err := json.Unmarshal(bytesData, &middleMap)
-	// if err != nil {
-	// 	return err
-	// }
-	// out = middleMap
+	dataType := reflect.TypeOf(out)
+	result := make(map[string]interface{})
+	if dataMap, ok := data.(map[string]interface{}); ok {
+		for key, value := range dataMap {
+			result[key] = value
+			log.Println(key, value)
+		}
+	}
+	log.Println(dataType)
+	res, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	log.Println(string(res))
+	err = json.Unmarshal(res, &out)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -51,6 +52,7 @@ func main() {
 		Username: "rvasily",
 		Active:   true,
 	}
+	fmt.Println("simple:", smpl)
 	// expected := &Complex{
 	// 	SubSimple:  smpl,
 	// 	ManySimple: []Simple{smpl, smpl},
@@ -58,13 +60,13 @@ func main() {
 	// }
 
 	jsonRaw, _ := json.Marshal(smpl)
-	fmt.Println(string(jsonRaw))
+	// fmt.Println(string(jsonRaw))
 
 	var tmpData interface{}
 	json.Unmarshal(jsonRaw, &tmpData)
-	fmt.Println(tmpData)
+	fmt.Println("tmpData:", tmpData)
 
-	result := new(Complex)
+	result := new(Simple)
 	err := i2s(tmpData, result)
 	if err != nil {
 		panic(err)
