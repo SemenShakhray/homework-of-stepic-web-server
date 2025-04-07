@@ -7,15 +7,15 @@ import (
 	// "fmt"
 )
 
-// type Simple struct {
-// 	ID       int
-// 	Username string
-// 	Active   bool
-// }
+type Simple struct {
+	ID       int
+	Username string
+	Active   bool
+}
 
-// type IDBlock struct {
-// 	ID int
-// }
+type IDBlock struct {
+	ID int
+}
 
 func TestSimple(t *testing.T) {
 	expected := &Simple{
@@ -40,11 +40,11 @@ func TestSimple(t *testing.T) {
 	}
 }
 
-// type Complex struct {
-// 	SubSimple  Simple
-// 	ManySimple []Simple
-// 	Blocks     []IDBlock
-// }
+type Complex struct {
+	SubSimple  Simple
+	ManySimple []Simple
+	Blocks     []IDBlock
+}
 
 func TestComplex(t *testing.T) {
 	smpl := Simple{
