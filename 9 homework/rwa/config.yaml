@@ -1,0 +1,4 @@
+storage_path: "./storage/conduit.db"
+migration_dir: "./migrations"
+token_ttl: 1h
+
