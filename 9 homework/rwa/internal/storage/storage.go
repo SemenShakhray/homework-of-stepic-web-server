@@ -1,36 +1,11 @@
 package storage
 
-import (
-	"database/sql"
-	"fmt"
-	"log"
-	"rwa/internal/config.go"
-)
+import "rwa/internal/models"
 
-type Storage struct {
-	db *sql.DB
+type Storer interface {
+	StorerUsers
 }
 
-func NewStorage(db *sql.DB) *Storage {
-	return &Storage{
-		db: db,
-	}
-}
-
-func Connect(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", cfg.StoragePath)
-	if err != nil {
-		log.Println("failed connected DB")
-
-		return nil, fmt.Errorf("failed connected DB")
-	}
-
-	err = db.Ping()
-	if err != nil {
-		log.Println("failed to connected DB")
-
-		return nil, fmt.Errorf("failed to ping DB")
-	}
-
-	return db, nil
+type StorerUsers interface {
+	Register(profile models.Profile) (models.Profile, error)
 }

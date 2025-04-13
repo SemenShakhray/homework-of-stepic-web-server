@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 	"rwa/internal/config.go"
-	"rwa/internal/storage"
+	"rwa/internal/storage/sqlite"
 )
 
 // сюда писать код
@@ -12,7 +12,9 @@ import (
 func GetApp() http.Handler {
 	cfg := config.MustLoad()
 
-	db, err := storage.Connect(cfg)
+	log.Println("Config:", cfg.StoragePath, cfg.TokenTTL)
+
+	_, err := sqlite.Connect(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
