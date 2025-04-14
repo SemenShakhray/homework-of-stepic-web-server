@@ -11,8 +11,15 @@ type Profile struct {
 		CreatedAt time.Time `json:"createdAt"`
 		UpdatedAt time.Time `json:"updatedAt"`
 		Image     string    `json:"image"`
-		Token     string    `json:"token"`
+		Token     string    `json:"-"`
 		Following bool      `json:"following"`
+	}
+}
+
+type Login struct {
+	User struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
 	}
 }
 

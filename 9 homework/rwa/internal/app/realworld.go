@@ -14,8 +14,6 @@ import (
 func GetApp() http.Handler {
 	cfg := config.MustLoad()
 
-	log.Println("Config:", cfg.StoragePath, cfg.TokenTTL)
-
 	db, err := sqlite.Connect(cfg)
 	if err != nil {
 		log.Fatal(err)
