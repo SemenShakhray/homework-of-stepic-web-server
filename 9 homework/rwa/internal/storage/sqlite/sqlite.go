@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+
 	"rwa/internal/config.go"
 	"rwa/internal/storage"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Storage struct {
@@ -34,8 +37,4 @@ func Connect(cfg config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-func (s *Storage) Stop() error {
-	return s.db.Close()
 }

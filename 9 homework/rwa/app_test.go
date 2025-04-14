@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"regexp"
+	"rwa/internal/app"
 	"strings"
 	"testing"
 	"time"
@@ -87,7 +88,7 @@ func TestApp(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	var (
-		app = GetApp()
+		app = app.GetApp()
 		ts  = httptest.NewServer(app)
 
 		// username = RandStringRunes(16)

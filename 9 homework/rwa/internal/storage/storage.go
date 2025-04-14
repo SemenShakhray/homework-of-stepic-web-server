@@ -7,5 +7,5 @@ type Storer interface {
 }
 
 type StorerUsers interface {
-	Register(profile models.Profile) (models.Profile, error)
+	Register(user models.Profile) (models.Profile, error)
 }

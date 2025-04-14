@@ -1,15 +1,15 @@
 package router
 
 import (
-	"net/http"
+	"rwa/internal/handlers"
 
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(h *http.Handler) *gin.Engine {
+func NewRouter(h *handlers.Handler) *gin.Engine {
 	r := gin.Default()
 
-	r.POST("api/users")
+	r.POST("api/users", h.Register)
 
 	return r
 }
