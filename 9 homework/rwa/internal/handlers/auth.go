@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	token "rwa/internal/lib"
 	"rwa/internal/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 )
 
 func (h *Handler) Register(c *gin.Context) {
@@ -38,30 +38,22 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Login(req)
+	token, err := token.CreateJWT(req.User.Email, h.cfg.TokenTTL)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
+
+		return
+	}
+
+	user, err := h.service.Login(req, token)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to login")
 
 		return
 	}
 
-	token, err := CreateJWT(req)
-	if err != nil {
-		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
-
-		return
-	}
-
-	err = h.service.AddToken(token, resp.User.Email)
-	if err != nil {
-		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
-
-		return
-	}
-
-	resp.User.Token = token
-
-	h.responseOK(c, resp, http.StatusOK)
+	log.Println("user after login:", user)
+	h.responseOK(c, user, http.StatusOK)
 
 }
 
@@ -69,7 +61,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 	email := c.GetString("email")
 	token := c.GetString("token")
 
-	profile, err := h.storage.GetProfile(email)
+	profile, err := h.service.GetUser(email)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to get profile")
 	}
@@ -85,20 +77,4 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	// email := c.GetString("email")
 
 	// profile
-}
-
-func CreateJWT(email string) (string, error) {
-
-	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"email": email,
-	})
-
-	token, err := claims.SignedString([]byte("secret"))
-	if err != nil {
-		log.Println("failed to sing token", err)
-
-		return "", err
-	}
-
-	return token, nil
 }

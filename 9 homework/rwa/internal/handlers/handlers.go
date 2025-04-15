@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"rwa/internal/config.go"
 	"rwa/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -9,17 +10,19 @@ import (
 
 type Handler struct {
 	service Servicer
+	cfg     config.Config
 }
 
 type Servicer interface {
 	Register(req models.RequestNewUser) (models.Users, error)
-	Login(req models.RequestLogin) (models.Users, error)
+	Login(req models.RequestLogin, token string) (models.Users, error)
 	GetUser(email string) (models.Users, error)
 }
 
-func NewHandler(service Servicer) *Handler {
+func NewHandler(service Servicer, cfg config.Config) *Handler {
 	return &Handler{
 		service: service,
+		cfg:     cfg,
 	}
 }
 

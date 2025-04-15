@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Storage) Register(email, username, hashPassword string) error {
-	query := "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
+	query := "INSERT INTO users (email, username, password_hash) VALUES (?, ?, ?)"
 
 	res, err := s.db.Exec(query, email, username, hashPassword)
 	if err != nil {
@@ -32,32 +32,32 @@ func (s *Storage) Register(email, username, hashPassword string) error {
 	return nil
 }
 
-func (s *Storage) GetPassword(profile models.RequestLogin) (string, error) {
-	var pass string
+// func (s *Storage) GetPassword(profile models.RequestLogin) (string, error) {
+// 	var pass string
 
-	row := s.db.QueryRow("SELECT password FROM users WHERE email=?", profile.User.Email)
-	if err := row.Scan(&pass); err != nil {
-		log.Println("failed to get password", err)
+// 	row := s.db.QueryRow("SELECT password FROM users WHERE email=?", profile.User.Email)
+// 	if err := row.Scan(&pass); err != nil {
+// 		log.Println("failed to get password", err)
 
-		return "", fmt.Errorf("failed to get password")
-	}
+// 		return "", fmt.Errorf("failed to get password")
+// 	}
 
-	return pass, nil
-}
+// 	return pass, nil
+// }
 
-func (s *Storage) Login(req models.RequestLogin) (models.Users, error) {
-	var user models.Users
+// func (s *Storage) Login(req models.RequestLogin) (models.Users, error) {
+// 	var user models.Users
 
-	rows := s.db.QueryRow("SELECT email, username, password_hash, created_at, updated_at FROM users WHERE email=?", req.User.Email)
-	err := rows.Scan(&user.User.Email, &user.User.Username, &user.User.PasswordHash, &user.User.CreatedAt, &user.User.UpdatedAt)
-	if err != nil {
-		log.Println("failed get profile after registration", err)
+// 	rows := s.db.QueryRow("SELECT email, username, password_hash, created_at, updated_at FROM users WHERE email=?", req.User.Email)
+// 	err := rows.Scan(&user.User.Email, &user.User.Username, &user.User.PasswordHash, &user.User.CreatedAt, &user.User.UpdatedAt)
+// 	if err != nil {
+// 		log.Println("failed get profile after registration", err)
 
-		return models.Users{}, fmt.Errorf("failed get profile og login: %w", err)
-	}
+// 		return models.Users{}, fmt.Errorf("failed get profile og login: %w", err)
+// 	}
 
-	return user, nil
-}
+// 	return user, nil
+// }
 
 func (s *Storage) AddToken(token, email string) error {
 	res, err := s.db.Exec("UPDATE users SET token=? WHERE email=?", token, email)
@@ -86,12 +86,15 @@ func (s *Storage) AddToken(token, email string) error {
 func (s *Storage) GetUser(email string) (models.Users, error) {
 	var user models.Users
 
-	row := s.db.QueryRow("SELECT email, username, bio,  image,token, created_at, updated_at FROM users WHERE email=?", email)
+	row := s.db.QueryRow("SELECT email, username, bio,  image, token, created_at, updated_at, password_hash FROM users WHERE email=?", email)
 	err := row.Scan(&user.User.Email,
 		&user.User.Username,
+		&user.User.Bio,
+		&user.User.Image,
+		&user.User.Token,
 		&user.User.CreatedAt,
 		&user.User.UpdatedAt,
-		&user.User.Token,
+		&user.User.PasswordHash,
 	)
 	if err != nil {
 		log.Println("failed to scan profile", err)

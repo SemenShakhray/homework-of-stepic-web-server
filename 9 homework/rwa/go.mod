@@ -17,6 +17,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/mcuadros/go-lookup v0.0.0-20200831155250-80f87a4fa5ee
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/crypto v0.37.0
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 )
 
@@ -50,7 +51,6 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect

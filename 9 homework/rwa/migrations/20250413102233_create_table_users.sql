@@ -2,12 +2,12 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users(
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username VARCHAR(128) NOT NULL UNIQUE,
-    email VARCHAR(128) NOT NULL UNIQUE,
+    username VARCHAR(128) NOT NULL,
+    email VARCHAR(128) NOT NULL,
     password_hash VARCHAR(256) NOT NULL,
     bio TEXT DEFAULT '',
     image TEXT DEFAULT '',
-    token TEXT,
+    token TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 ); 

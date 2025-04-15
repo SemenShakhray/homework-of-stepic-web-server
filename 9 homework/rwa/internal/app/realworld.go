@@ -3,10 +3,12 @@ package app
 import (
 	"log"
 	"net/http"
+
 	"rwa/internal/config.go"
 	"rwa/internal/handlers"
+	"rwa/internal/router"
+	"rwa/internal/service"
 	"rwa/internal/storage/sqlite"
-	"rwa/router"
 )
 
 // сюда писать код
@@ -29,7 +31,8 @@ func GetApp() http.Handler {
 	// }()
 
 	store := sqlite.NewStorage(db)
-	handler := handlers.NewHandler(store)
+	service := service.NewService(store)
+	handler := handlers.NewHandler(service, cfg)
 	router := router.NewRouter(handler)
 
 	return router

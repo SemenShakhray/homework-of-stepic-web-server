@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"rwa/internal/config.go"
-	"rwa/internal/storage"
+	"rwa/internal/service"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -15,7 +15,7 @@ type Storage struct {
 	db *sql.DB
 }
 
-func NewStorage(db *sql.DB) storage.Storer {
+func NewStorage(db *sql.DB) service.Storer {
 	return &Storage{
 		db: db,
 	}
