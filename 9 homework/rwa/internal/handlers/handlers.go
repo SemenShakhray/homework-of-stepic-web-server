@@ -2,18 +2,24 @@ package handlers
 
 import (
 	"log"
-	"rwa/internal/storage"
+	"rwa/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	storage storage.Storer
+	service Servicer
 }
 
-func NewHandler(store storage.Storer) *Handler {
+type Servicer interface {
+	Register(req models.RequestNewUser) (models.Users, error)
+	Login(req models.RequestLogin) (models.Users, error)
+	GetUser(email string) (models.Users, error)
+}
+
+func NewHandler(service Servicer) *Handler {
 	return &Handler{
-		storage: store,
+		service: service,
 	}
 }
 

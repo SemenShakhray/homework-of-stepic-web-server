@@ -6,30 +6,33 @@ import (
 	"rwa/internal/models"
 )
 
-func (s *Storage) Register(user models.Profile) (models.Profile, error) {
+func (s *Storage) Register(email, username, hashPassword string) error {
 	query := "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
 
-	_, err := s.db.Exec(query, user.User.Email, user.User.Username, user.User.Password)
+	res, err := s.db.Exec(query, email, username, hashPassword)
 	if err != nil {
-		log.Println("failed created profile", err)
+		log.Println("error adding a new user", err)
 
-		return models.Profile{}, fmt.Errorf("failed created profile: %w", err)
+		return fmt.Errorf("failed created user: %w", err)
 	}
 
-	var prof models.Profile
-
-	rows := s.db.QueryRow("SELECT email, username, created_at, updated_at FROM users WHERE email=?", user.User.Email)
-	err = rows.Scan(&prof.User.Email, &prof.User.Username, &prof.User.CreatedAt, &prof.User.UpdatedAt)
+	id, err := res.LastInsertId()
 	if err != nil {
-		log.Println("failed get profile after registration", err)
+		log.Println("couldn't get the ID of the last record", err)
 
-		return models.Profile{}, fmt.Errorf("failed get profile after registration: %w", err)
+		return fmt.Errorf("failed created user: %w", err)
 	}
 
-	return prof, nil
+	if id == 0 {
+		log.Println("ID last record is nil", err)
+
+		return fmt.Errorf("failed created user: %w", err)
+	}
+
+	return nil
 }
 
-func (s *Storage) GetPassword(profile models.Login) (string, error) {
+func (s *Storage) GetPassword(profile models.RequestLogin) (string, error) {
 	var pass string
 
 	row := s.db.QueryRow("SELECT password FROM users WHERE email=?", profile.User.Email)
@@ -42,16 +45,59 @@ func (s *Storage) GetPassword(profile models.Login) (string, error) {
 	return pass, nil
 }
 
-func (s *Storage) Login(profile models.Login) (models.Profile, error) {
-	var prof models.Profile
+func (s *Storage) Login(req models.RequestLogin) (models.Users, error) {
+	var user models.Users
 
-	rows := s.db.QueryRow("SELECT email, username, created_at, updated_at FROM users WHERE email=?", profile.User.Email)
-	err := rows.Scan(&prof.User.Email, &prof.User.Username, &prof.User.CreatedAt, &prof.User.UpdatedAt)
+	rows := s.db.QueryRow("SELECT email, username, password_hash, created_at, updated_at FROM users WHERE email=?", req.User.Email)
+	err := rows.Scan(&user.User.Email, &user.User.Username, &user.User.PasswordHash, &user.User.CreatedAt, &user.User.UpdatedAt)
 	if err != nil {
 		log.Println("failed get profile after registration", err)
 
-		return models.Profile{}, fmt.Errorf("failed get profile og login: %w", err)
+		return models.Users{}, fmt.Errorf("failed get profile og login: %w", err)
 	}
 
-	return prof, nil
+	return user, nil
+}
+
+func (s *Storage) AddToken(token, email string) error {
+	res, err := s.db.Exec("UPDATE users SET token=? WHERE email=?", token, email)
+	if err != nil {
+		log.Println("failed to added token:", err)
+
+		return fmt.Errorf("failed to added token")
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		log.Println("failed to added token:", err)
+
+		return fmt.Errorf("failed to retrieve rows affected: %w", err)
+	}
+
+	if n == 0 {
+		log.Println("failed to added token: user not found")
+
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+func (s *Storage) GetUser(email string) (models.Users, error) {
+	var user models.Users
+
+	row := s.db.QueryRow("SELECT email, username, bio,  image,token, created_at, updated_at FROM users WHERE email=?", email)
+	err := row.Scan(&user.User.Email,
+		&user.User.Username,
+		&user.User.CreatedAt,
+		&user.User.UpdatedAt,
+		&user.User.Token,
+	)
+	if err != nil {
+		log.Println("failed to scan profile", err)
+
+		return models.Users{}, fmt.Errorf("failed to scan profile")
+	}
+
+	return user, nil
 }

@@ -1,4 +1,5 @@
 storage_path: "./storage/conduit.db"
+secret_jwt: "secret"
 token_ttl: 30m
 migration_dir: "./migrations"
 

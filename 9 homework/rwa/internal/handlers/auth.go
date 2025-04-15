@@ -11,15 +11,15 @@ import (
 )
 
 func (h *Handler) Register(c *gin.Context) {
-	var prof models.Profile
+	var req models.RequestNewUser
 
-	if err := c.ShouldBindJSON(&prof); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		h.ErrorResponse(c, err, http.StatusBadRequest, "wrong request of registration")
 
 		return
 	}
 
-	resp, err := h.storage.Register(prof)
+	resp, err := h.service.Register(req)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed regisration")
 
@@ -30,7 +30,7 @@ func (h *Handler) Register(c *gin.Context) {
 }
 
 func (h *Handler) Login(c *gin.Context) {
-	var req models.Login
+	var req models.RequestLogin
 
 	if err := c.BindJSON(&req); err != nil {
 		h.ErrorResponse(c, err, http.StatusBadRequest, "failed request")
@@ -38,27 +38,21 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	pass, err := h.storage.GetPassword(req)
-	if err != nil {
-		h.ErrorResponse(c, err, http.StatusInternalServerError, "wrong password")
-
-		return
-	}
-
-	if req.User.Password != pass {
-		h.ErrorResponse(c, fmt.Errorf("wrong password"), http.StatusInternalServerError, "wrong password")
-
-		return
-	}
-
-	resp, err := h.storage.Login(req)
+	resp, err := h.service.Login(req)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to login")
 
 		return
 	}
 
-	token, err := CreateJWT(resp)
+	token, err := CreateJWT(req)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
+
+		return
+	}
+
+	err = h.service.AddToken(token, resp.User.Email)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
 
@@ -71,11 +65,32 @@ func (h *Handler) Login(c *gin.Context) {
 
 }
 
-func CreateJWT(profile models.Profile) (string, error) {
+func (h *Handler) GetProfile(c *gin.Context) {
+	email := c.GetString("email")
+	token := c.GetString("token")
+
+	profile, err := h.storage.GetProfile(email)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to get profile")
+	}
+
+	if token != profile.User.Token {
+		h.ErrorResponse(c, fmt.Errorf("invalid token"), http.StatusBadRequest, "invalid token")
+	}
+
+	h.responseOK(c, profile, http.StatusOK)
+}
+
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	// email := c.GetString("email")
+
+	// profile
+}
+
+func CreateJWT(email string) (string, error) {
 
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": profile.User.Username,
-		"email":    profile.User.Email,
+		"email": email,
 	})
 
 	token, err := claims.SignedString([]byte("secret"))
