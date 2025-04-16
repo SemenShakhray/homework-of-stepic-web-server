@@ -20,7 +20,7 @@ func GetApp() http.Handler {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// defer func() {
+	// defer func(db *sql.DB) {
 	// 	if errCl := db.Close(); errCl != nil {
 	// 		log.Println("Error closing DB: ", errCl)
 
@@ -28,7 +28,7 @@ func GetApp() http.Handler {
 	// 	}
 
 	// 	log.Println("DB connection closed")
-	// }()
+	// }(db)
 
 	store := sqlite.NewStorage(db)
 	service := service.NewService(store)
