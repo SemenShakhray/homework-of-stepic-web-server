@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func ValidToken() gin.HandlerFunc {
+func ValidToken(secretJWT string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenHeader := c.GetHeader("Authorization")
 		if tokenHeader == "" {
@@ -36,9 +36,7 @@ func ValidToken() gin.HandlerFunc {
 				return nil, fmt.Errorf("unexpected signing method: %s", t.Method.Alg())
 			}
 
-			secretKey := "secret"
-
-			return []byte(secretKey), nil
+			return []byte(secretJWT), nil
 		})
 
 		if err != nil || !token.Valid {

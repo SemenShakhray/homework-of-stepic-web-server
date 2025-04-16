@@ -1,4 +1,4 @@
-package token
+package lib
 
 import (
 	"log"

@@ -4,25 +4,27 @@ import (
 	"log"
 	"rwa/internal/config.go"
 	"rwa/internal/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
 	service Servicer
-	cfg     config.Config
+	Cfg     config.Config
 }
 
 type Servicer interface {
-	Register(req models.RequestNewUser) (models.Users, error)
-	Login(req models.RequestLogin, token string) (models.Users, error)
-	GetUser(email string) (models.Users, error)
+	Register(req models.RequestNewUser) (models.User, error)
+	Login(req models.RequestLogin, token string) (models.User, error)
+	GetUser(email string) (models.User, error)
+	UpdateUser(user models.User, email string, exp time.Duration) (models.User, error)
 }
 
 func NewHandler(service Servicer, cfg config.Config) *Handler {
 	return &Handler{
 		service: service,
-		cfg:     cfg,
+		Cfg:     cfg,
 	}
 }
 

@@ -36,8 +36,8 @@ func (ft *FakeTime) UnmarshalJSON(data []byte) error {
 type TestProfile struct {
 	ID        string   `json:"id" testdiff:"ignore"`
 	Email     string   `json:"email"`
-	CreatedAt FakeTime `json:"createdAt"`
-	UpdatedAt FakeTime `json:"updatedAt"`
+	CreatedAt FakeTime `json:"created_at"`
+	UpdatedAt FakeTime `json:"updated_at"`
 	Username  string   `json:"username"`
 	Bio       string   `json:"bio"`
 	Image     string   `json:"image"`
@@ -48,14 +48,14 @@ type TestProfile struct {
 type TestArticle struct {
 	Author         TestProfile `json:"author"`
 	Body           string      `json:"body"`
-	CreatedAt      FakeTime    `json:"createdAt"`
+	CreatedAt      FakeTime    `json:"created_at"`
 	Description    string      `json:"description"`
 	Favorited      bool        `json:"favorited"`
 	FavoritesCount int         `json:"favoritesCount"`
 	Slug           string      `json:"slug" testdiff:"ignore"`
 	TagList        []string    `json:"tagList"`
 	Title          string      `json:"title"`
-	UpdatedAt      FakeTime    `json:"updatedAt"`
+	UpdatedAt      FakeTime    `json:"updated_at"`
 }
 
 func strP(in string) *string {

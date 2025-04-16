@@ -15,10 +15,9 @@ type Storer interface {
 
 type StorerUsers interface {
 	Register(email, username, password string) error
-	// GetPassword(profile models.RequestLogin) (string, error)
-	// Login(profile models.RequestLogin) (models.Users, error)
 	AddToken(token, email string) error
-	GetUser(email string) (models.Users, error)
+	GetUser(email string) (models.User, error)
+	UpdateUser(user map[string]string, email string) error
 }
 
 func NewService(store Storer) handlers.Servicer {

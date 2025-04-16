@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	token "rwa/internal/lib"
+	"rwa/internal/lib"
 	"rwa/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +25,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	h.responseOK(c, resp, http.StatusCreated)
+	h.responseOK(c, models.ResponseUser{User: resp}, http.StatusCreated)
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -38,7 +37,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := token.CreateJWT(req.User.Email, h.cfg.TokenTTL)
+	token, err := lib.CreateJWT(req.User.Email, h.Cfg.TokenTTL)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
 
@@ -52,29 +51,41 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	log.Println("user after login:", user)
-	h.responseOK(c, user, http.StatusOK)
-
+	h.responseOK(c, models.ResponseUser{User: user}, http.StatusOK)
 }
 
-func (h *Handler) GetProfile(c *gin.Context) {
+func (h *Handler) GetUser(c *gin.Context) {
 	email := c.GetString("email")
 	token := c.GetString("token")
 
-	profile, err := h.service.GetUser(email)
+	user, err := h.service.GetUser(email)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to get profile")
 	}
 
-	if token != profile.User.Token {
+	if token != user.Token {
 		h.ErrorResponse(c, fmt.Errorf("invalid token"), http.StatusBadRequest, "invalid token")
 	}
 
-	h.responseOK(c, profile, http.StatusOK)
+	h.responseOK(c, models.ResponseUser{User: user}, http.StatusOK)
 }
 
-func (h *Handler) UpdateProfile(c *gin.Context) {
-	// email := c.GetString("email")
+func (h *Handler) UpdateUser(c *gin.Context) {
+	var user models.ResponseUser
 
-	// profile
+	err := c.ShouldBindJSON(&user)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusBadRequest, "failed request deserialization ")
+	}
+
+	email := c.GetString("email")
+
+	userResp, err := h.service.UpdateUser(user.User, email, h.Cfg.TokenTTL)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to update user")
+
+		return
+	}
+
+	h.responseOK(c, models.ResponseUser{User: userResp}, http.StatusOK)
 }

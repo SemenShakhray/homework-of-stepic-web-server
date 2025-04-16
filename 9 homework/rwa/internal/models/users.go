@@ -2,17 +2,19 @@ package models
 
 import "time"
 
-type Users struct {
-	User struct {
-		Username     string    `json:"username"`
-		Email        string    `json:"email"`
-		PasswordHash string    `json:"-"`
-		Bio          string    `json:"bio"`
-		Image        string    `json:"image"`
-		Token        string    `json:"token"`
-		CreatedAt    time.Time `json:"createdAt"`
-		UpdatedAt    time.Time `json:"updatedAt"`
-	}
+type User struct {
+	Username     string    `json:"username,omitempty"`
+	Email        string    `json:"email,omitempty"`
+	PasswordHash string    `json:"-"`
+	Bio          string    `json:"bio,omitempty"`
+	Image        string    `json:"image,omitempty"`
+	Token        string    `json:"token,omitempty"`
+	CreatedAt    time.Time `json:"created_at,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+}
+
+type ResponseUser struct {
+	User User `json:"user"`
 }
 
 type RequestNewUser struct {
@@ -28,9 +30,6 @@ type RequestLogin struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
-}
-
-type ResponseUser struct {
 }
 
 // type Profile struct {
