@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"rwa/internal/models"
@@ -33,33 +34,6 @@ func (s *Storage) Register(email, username, hashPassword string) error {
 	return nil
 }
 
-// func (s *Storage) GetPassword(profile models.RequestLogin) (string, error) {
-// 	var pass string
-
-// 	row := s.db.QueryRow("SELECT password FROM users WHERE email=?", profile.User.Email)
-// 	if err := row.Scan(&pass); err != nil {
-// 		log.Println("failed to get password", err)
-
-// 		return "", fmt.Errorf("failed to get password")
-// 	}
-
-// 	return pass, nil
-// }
-
-// func (s *Storage) Login(req models.RequestLogin) (models.Users, error) {
-// 	var user models.Users
-
-// 	rows := s.db.QueryRow("SELECT email, username, password_hash, created_at, updated_at FROM users WHERE email=?", req.User.Email)
-// 	err := rows.Scan(&user.User.Email, &user.User.Username, &user.User.PasswordHash, &user.User.CreatedAt, &user.User.UpdatedAt)
-// 	if err != nil {
-// 		log.Println("failed get profile after registration", err)
-
-// 		return models.Users{}, fmt.Errorf("failed get profile og login: %w", err)
-// 	}
-
-// 	return user, nil
-// }
-
 func (s *Storage) AddToken(token, email string) error {
 	res, err := s.db.Exec("UPDATE users SET token=? WHERE email=?", token, email)
 	if err != nil {
@@ -87,8 +61,9 @@ func (s *Storage) AddToken(token, email string) error {
 func (s *Storage) GetUser(email string) (models.User, error) {
 	var user models.User
 
-	row := s.db.QueryRow("SELECT email, username, bio,  image, token, created_at, updated_at, password_hash FROM users WHERE email=?", email)
-	err := row.Scan(&user.Email,
+	row := s.db.QueryRow("SELECT user_id, email, username, bio,  image, token, created_at, updated_at, password_hash FROM users WHERE email=?", email)
+	err := row.Scan(&user.UserID,
+		&user.Email,
 		&user.Username,
 		&user.Bio,
 		&user.Image,
@@ -98,6 +73,11 @@ func (s *Storage) GetUser(email string) (models.User, error) {
 		&user.PasswordHash,
 	)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Println("recors don't exists:", err)
+
+			return models.User{}, fmt.Errorf("recors don't exists")
+		}
 		log.Println("failed to scan profile", err)
 
 		return models.User{}, fmt.Errorf("failed to scan profile")
@@ -142,13 +122,18 @@ func (s *Storage) UpdateUser(user map[string]string, email string) error {
 		return fmt.Errorf("user not found")
 	}
 
-	// if v, ok := user["email"]; ok {
-	// 	email = v
-	// }
-	// respUser, err := s.GetUser(email)
-	// if err != nil {
-	// 	return models.User{}, err
-	// }
-
 	return nil
 }
+
+// func (s *Storage) GetUserID(email string) (int, error) {
+// 	var id int
+
+// 	err := s.db.QueryRow("SELECT user_id FROM users WHERE email=?").Scan(&id)
+// 	if err != nil {
+// 		log.Println("failed to get userID:", err)
+
+// 		return 0, fmt.Errorf("failed to get userID - %w", err)
+// 	}
+
+// 	return id, nil
+// }

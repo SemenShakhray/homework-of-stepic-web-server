@@ -15,10 +15,19 @@ type Handler struct {
 }
 
 type Servicer interface {
+	AuthService
+	ArticleService
+}
+
+type AuthService interface {
 	Register(req models.RequestNewUser) (models.User, error)
 	Login(req models.RequestLogin, token string) (models.User, error)
 	GetUser(email string) (models.User, error)
 	UpdateUser(user models.User, email string, exp time.Duration) (models.User, error)
+}
+
+type ArticleService interface {
+	Create(req models.RequestNewArticle, email string) (models.Article, error)
 }
 
 func NewHandler(service Servicer, cfg config.Config) *Handler {

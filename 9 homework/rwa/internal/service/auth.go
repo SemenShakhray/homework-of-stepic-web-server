@@ -48,7 +48,7 @@ func (s *Service) Login(req models.RequestLogin, token string) (models.User, err
 	if err != nil {
 		log.Println("invalid password", err)
 
-		return models.User{}, fmt.Errorf("infalid password: %w", err)
+		return models.User{}, fmt.Errorf("invalid password: %w", err)
 	}
 
 	return user, nil
