@@ -18,7 +18,14 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Register(req)
+	token, err := lib.CreateJWT(req.User.Email, h.Cfg.TokenTTL)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
+
+		return
+	}
+
+	resp, err := h.service.Register(req, token)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed regisration")
 
@@ -37,14 +44,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := lib.CreateJWT(req.User.Email, h.Cfg.TokenTTL)
-	if err != nil {
-		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
-
-		return
-	}
-
-	user, err := h.service.Login(req, token)
+	user, err := h.service.Login(req)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to login")
 

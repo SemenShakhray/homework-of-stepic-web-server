@@ -21,12 +21,24 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Create(req, email)
+	res, err := h.service.Create(req, email)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create article")
 
 		return
 	}
 
+	resp := models.Articles{
+		Article: res,
+	}
+
 	h.responseOK(c, resp, http.StatusCreated)
+}
+
+func (h *Handler) GetAllArticlesByFiltres(c *gin.Context) {
+	var params models.ArticleQueryParams
+
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.ErrorResponse(c, err, http.StatusBadRequest, "invalid query parameters")
+	}
 }

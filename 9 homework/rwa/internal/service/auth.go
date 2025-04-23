@@ -12,7 +12,7 @@ import (
 	"rwa/internal/models"
 )
 
-func (s *Service) Register(req models.RequestNewUser) (models.User, error) {
+func (s *Service) Register(req models.RequestNewUser, token string) (models.User, error) {
 	hashPass, err := bcrypt.GenerateFromPassword([]byte(req.User.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("failed to hash password")
@@ -25,6 +25,11 @@ func (s *Service) Register(req models.RequestNewUser) (models.User, error) {
 		return models.User{}, err
 	}
 
+	err = s.store.AddToken(token, req.User.Email)
+	if err != nil {
+		return models.User{}, err
+	}
+
 	user, err := s.store.GetUser(req.User.Email)
 	if err != nil {
 		return models.User{}, err
@@ -33,11 +38,7 @@ func (s *Service) Register(req models.RequestNewUser) (models.User, error) {
 	return user, nil
 }
 
-func (s *Service) Login(req models.RequestLogin, token string) (models.User, error) {
-	err := s.store.AddToken(token, req.User.Email)
-	if err != nil {
-		return models.User{}, err
-	}
+func (s *Service) Login(req models.RequestLogin) (models.User, error) {
 
 	user, err := s.store.GetUser(req.User.Email)
 	if err != nil {

@@ -10,8 +10,7 @@ CREATE TABLE IF NOT EXISTS articles (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     favorites_count INTEGER DEFAULT 0,
     author_id INTEGER NOT NULL,
-    FOREIGN KEY (author_id) REFERENCES users(user_id)
-     ON DELETE CASCADE
+    FOREIGN KEY (author_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS articles_author_id ON articles(author_id);
 -- +goose StatementEnd

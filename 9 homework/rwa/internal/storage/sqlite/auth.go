@@ -100,8 +100,6 @@ func (s *Storage) UpdateUser(user map[string]string, email string) error {
 	query += " WHERE email = ?"
 	args = append(args, email)
 
-	log.Println("query of update user", query)
-
 	row, err := s.db.Exec(query, args...)
 	if err != nil {
 		log.Println("failed to update user:", err)
@@ -124,16 +122,3 @@ func (s *Storage) UpdateUser(user map[string]string, email string) error {
 
 	return nil
 }
-
-// func (s *Storage) GetUserID(email string) (int, error) {
-// 	var id int
-
-// 	err := s.db.QueryRow("SELECT user_id FROM users WHERE email=?").Scan(&id)
-// 	if err != nil {
-// 		log.Println("failed to get userID:", err)
-
-// 		return 0, fmt.Errorf("failed to get userID - %w", err)
-// 	}
-
-// 	return id, nil
-// }

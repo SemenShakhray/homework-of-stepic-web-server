@@ -21,17 +21,13 @@ func (s *Service) Create(req models.RequestNewArticle, email string) (models.Art
 
 func generateSlug(title string) string {
 	slug := strings.ToLower(title)
-
 	re := regexp.MustCompile(`[^\w\s-]`)
 	slug = re.ReplaceAllString(slug, "")
-
 	slug = strings.ReplaceAll(slug, " ", "-")
 	slug = strings.ReplaceAll(slug, "_", "-")
-
 	slug = regexp.MustCompile(`-{2,}`).ReplaceAllString(slug, "-")
-
 	slug = strings.Trim(slug, "-")
-
 	slug += "-" + fmt.Sprintf("%d", time.Now().Unix())
+
 	return slug
 }
