@@ -21,7 +21,7 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.Create(req, email)
+	res, err := h.service.CreateArticle(req, email)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create article")
 
@@ -40,5 +40,16 @@ func (h *Handler) GetAllArticlesByFiltres(c *gin.Context) {
 
 	if err := c.ShouldBindQuery(&params); err != nil {
 		h.ErrorResponse(c, err, http.StatusBadRequest, "invalid query parameters")
+
+		return
 	}
+
+	resp, err := h.service.GetAllArticlesByFiltres(params)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to get articles")
+
+		return
+	}
+
+	h.responseOK(c, resp, http.StatusOK)
 }

@@ -16,5 +16,5 @@ CREATE TABLE IF NOT EXISTS article_tags(
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+DROP TABLE IF EXISTS article_tags;
 -- +goose StatementEnd

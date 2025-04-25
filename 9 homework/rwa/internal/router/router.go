@@ -12,6 +12,7 @@ func NewRouter(h *handlers.Handler) *gin.Engine {
 
 	r.POST("api/users", h.Register)
 	r.POST("api/users/login", h.Login)
+	r.GET("api/articles", h.GetAllArticlesByFiltres)
 
 	auth := r.Group("api/", middleware.ValidToken(h.Cfg.SecretJWT))
 	{

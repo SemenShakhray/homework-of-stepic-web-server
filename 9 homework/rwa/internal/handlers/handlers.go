@@ -27,7 +27,8 @@ type AuthService interface {
 }
 
 type ArticleService interface {
-	Create(req models.RequestNewArticle, email string) (models.Article, error)
+	CreateArticle(req models.RequestNewArticle, email string) (models.Article, error)
+	GetAllArticlesByFiltres(models.ArticleQueryParams) (models.RequestAllArticleByFiltres, error)
 }
 
 func NewHandler(service Servicer, cfg config.Config) *Handler {

@@ -23,6 +23,7 @@ type UsersStore interface {
 
 type ArticleStore interface {
 	CreateWithResponse(req models.RequestNewArticle, slug, email string) (models.Article, error)
+	GetAllArticlesByFiltres(params models.ArticleQueryParams) ([]models.Article, error)
 }
 
 func NewService(store Storer) handlers.Servicer {

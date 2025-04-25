@@ -35,3 +35,8 @@ type ArticleQueryParams struct {
 	Limit     int    `form:"limit,default=20"`
 	Offset    int    `form:"offset,default=0"`
 }
+
+type RequestAllArticleByFiltres struct {
+	Articles      []Article `json:"articles"`
+	ArticlesCount int       `json:"articlesCount"`
+}

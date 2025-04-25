@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (s *Service) Create(req models.RequestNewArticle, email string) (models.Article, error) {
+func (s *Service) CreateArticle(req models.RequestNewArticle, email string) (models.Article, error) {
 	slug := generateSlug(req.Article.Title)
 
 	article, err := s.store.CreateWithResponse(req, slug, email)
@@ -30,4 +30,18 @@ func generateSlug(title string) string {
 	slug += "-" + fmt.Sprintf("%d", time.Now().Unix())
 
 	return slug
+}
+
+func (s *Service) GetAllArticlesByFiltres(params models.ArticleQueryParams) (models.RequestAllArticleByFiltres, error) {
+	articles, err := s.store.GetAllArticlesByFiltres(params)
+	if err != nil {
+		return models.RequestAllArticleByFiltres{}, err
+	}
+
+	count := len(articles)
+
+	return models.RequestAllArticleByFiltres{
+		Articles:      articles,
+		ArticlesCount: count,
+	}, nil
 }
