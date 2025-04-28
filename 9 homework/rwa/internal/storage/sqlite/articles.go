@@ -100,44 +100,43 @@ func (s *Storage) GetArticle(artID int) (models.Article, error) {
 func (s *Storage) GetAllArticlesByFiltres(params models.ArticleQueryParams) ([]models.Article, error) {
 	var query bytes.Buffer
 	var args []interface{}
-	var conditions, joins []string
+	var conditions []string
 
 	query.WriteString(`SELECT a.slug, a.title, a.description, a.body, a.created_at, a.updated_at, a.favorites_count,
-	u.username, u.bio, u.image
+	u.username, u.bio, u.image,
 	GROUP_CONCAT(t.name) AS tags
-	FROM articles a `)
-
-	if params.Tag != "" {
-		joins = append(joins, `
-		JOIN article_tags at ON a.article_id=at.article_id
-		JOIN tags t ON at.tag_id = t.tag_id
-		`)
-		conditions = append(conditions, "LOWER(t.name) LIKE LOWER(?)")
-		args = append(args, `%`+params.Tag+"%")
-	}
+	FROM articles a 
+	JOIN users u ON a.author_id = u.user_id
+	LEFT JOIN article_tags at ON a.article_id=at.article_id
+	LEFT JOIN tags t ON at.tag_id = t.tag_id
+	LEFT JOIN favorites f ON a.article_id=f.article_id
+	LEFT JOIN users u_fav ON f.user_id = u_fav.user_id `)
 
 	if params.Author != "" {
-		joins = append(joins, "JOIN users u ON a.author_id = u.user_id")
 		conditions = append(conditions, "LOWER(u.username) LIKE LOWER(?)")
 		args = append(args, "%"+params.Author+"%")
 	}
 
-	if params.Favorited != "" {
-		joins = append(joins, `
-		JOIN favorites f ON a.article_id=f.article_id
-		JOIN users u_fav ON f.user_id = u_fav.user_id
-		`)
-		conditions = append(conditions, "LOWER(u.username) LIKE LOWER(?)")
-		args = append(args, "%"+params.Favorited+"%")
+	if params.Tag != "" {
+		conditions = append(conditions, `EXISTS (
+			SELECT 1
+			FROM article_tags at2
+			JOIN tags t2 ON at2.tag_id = t2.tag_id
+			WHERE at2.article_id = a.article_id AND LOWER(t2.name) LIKE LOWER(?)
+		)`)
+		args = append(args, `%`+params.Tag+"%")
 	}
 
-	for _, j := range joins {
-		query.WriteString(j + " ")
+	if params.Favorited != "" {
+		conditions = append(conditions, "LOWER(u_fav.username) LIKE LOWER(?)")
+		args = append(args, "%"+params.Favorited+"%")
 	}
 
 	if len(conditions) > 0 {
 		query.WriteString("WHERE " + strings.Join(conditions, " AND ") + " ")
 	}
+
+	query.WriteString("GROUP BY a.article_id ")
 
 	query.WriteString("LIMIT ? ")
 	args = append(args, params.Limit)
@@ -156,12 +155,22 @@ func (s *Storage) GetAllArticlesByFiltres(params models.ArticleQueryParams) ([]m
 	var articles []models.Article
 	for rows.Next() {
 		var a models.Article
-		err := rows.Scan(&a.Slug, &a.Title, &a.Description, &a.Body, &a.CreatedAt, &a.UpdatedAt, &a.FavoritesCount)
+		var tags string
+
+		err := rows.Scan(&a.Slug, &a.Title, &a.Description, &a.Body,
+			&a.CreatedAt, &a.UpdatedAt, &a.FavoritesCount,
+			&a.Author.Username, &a.Author.Bio, &a.Author.Image, &tags)
 		if err != nil {
 			log.Println("failed to scan article:", err)
 
 			return nil, fmt.Errorf("failed to scan article: %w", err)
 		}
+
+		if tags != "" {
+			log.Println(tags)
+			a.TagList = strings.Split(tags, ",")
+		}
+
 		articles = append(articles, a)
 	}
 

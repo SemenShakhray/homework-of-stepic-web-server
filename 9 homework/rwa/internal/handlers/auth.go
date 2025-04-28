@@ -89,3 +89,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	h.responseOK(c, models.ResponseUser{User: userResp}, http.StatusOK)
 }
+
+func (h *Handler) Logout(c *gin.Context) {
+
+}
