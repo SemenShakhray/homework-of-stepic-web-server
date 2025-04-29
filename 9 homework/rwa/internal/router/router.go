@@ -19,6 +19,7 @@ func NewRouter(h *handlers.Handler) *gin.Engine {
 		auth.GET("/user", h.GetUser)
 		auth.PUT("/user", h.UpdateUser)
 		auth.POST("/articles", h.CreateArticle)
+		auth.POST("/user/logout", h.Logout)
 	}
 
 	return r

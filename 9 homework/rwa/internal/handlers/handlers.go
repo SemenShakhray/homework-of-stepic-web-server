@@ -21,9 +21,10 @@ type Servicer interface {
 
 type AuthService interface {
 	Register(req models.RequestNewUser, token string) (models.User, error)
-	Login(req models.RequestLogin) (models.User, error)
+	Login(req models.RequestLogin, token string) (models.User, error)
 	GetUser(email string) (models.User, error)
 	UpdateUser(user models.User, email string, exp time.Duration) (models.User, error)
+	Logout(token, email string) error
 }
 
 type ArticleService interface {

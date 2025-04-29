@@ -122,3 +122,38 @@ func (s *Storage) UpdateUser(user map[string]string, email string) error {
 
 	return nil
 }
+
+func (s *Storage) GetToken(email string) (string, error) {
+	var token string
+
+	if err := s.db.QueryRow("SELECT token FROM users WHERE email = ?", email).Scan(&token); err != nil {
+		log.Println("failed to get token of user:", err)
+
+		return "", fmt.Errorf("failed to get token of user: %w", err)
+	}
+
+	return token, nil
+}
+
+func (s *Storage) DeleteToken(email string) error {
+	res, err := s.db.Exec("UPDATE users SET token = '' WHERE email = ?", email)
+	if err != nil {
+		log.Println("failed to delete token of user:", err)
+
+		return fmt.Errorf("failed to delete token of user: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		log.Println("failed to get rowAffected:", err)
+
+		return fmt.Errorf("failed to get rowAffected: %w", err)
+	}
+
+	if n == 0 {
+		log.Println("the user don't exists")
+
+		return fmt.Errorf("the user don't exists")
+	}
+	return nil
+}

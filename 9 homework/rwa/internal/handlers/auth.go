@@ -44,7 +44,14 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Login(req)
+	token, err := lib.CreateJWT(req.User.Email, h.Cfg.TokenTTL)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to create token")
+
+		return
+	}
+
+	user, err := h.service.Login(req, token)
 	if err != nil {
 		h.ErrorResponse(c, err, http.StatusInternalServerError, "failed to login")
 
@@ -64,7 +71,9 @@ func (h *Handler) GetUser(c *gin.Context) {
 	}
 
 	if token != user.Token {
-		h.ErrorResponse(c, fmt.Errorf("invalid token"), http.StatusBadRequest, "invalid token")
+		h.ErrorResponse(c, fmt.Errorf("invalid token"), http.StatusUnauthorized, "invalid token")
+
+		return
 	}
 
 	h.responseOK(c, models.ResponseUser{User: user}, http.StatusOK)
@@ -91,5 +100,15 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
+	token := c.GetString("token")
+	email := c.GetString("email")
 
+	err := h.service.Logout(token, email)
+	if err != nil {
+		h.ErrorResponse(c, err, http.StatusUnauthorized, "failed logout")
+
+		return
+	}
+
+	h.responseOK(c, "", http.StatusOK)
 }

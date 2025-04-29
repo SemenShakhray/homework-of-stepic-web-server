@@ -19,6 +19,8 @@ type UsersStore interface {
 	AddToken(token, email string) error
 	GetUser(email string) (models.User, error)
 	UpdateUser(user map[string]string, email string) error
+	GetToken(email string) (string, error)
+	DeleteToken(email string) error
 }
 
 type ArticleStore interface {

@@ -38,7 +38,11 @@ func (s *Service) Register(req models.RequestNewUser, token string) (models.User
 	return user, nil
 }
 
-func (s *Service) Login(req models.RequestLogin) (models.User, error) {
+func (s *Service) Login(req models.RequestLogin, token string) (models.User, error) {
+	err := s.store.AddToken(token, req.User.Email)
+	if err != nil {
+		return models.User{}, err
+	}
 
 	user, err := s.store.GetUser(req.User.Email)
 	if err != nil {
@@ -101,4 +105,22 @@ func (s *Service) UpdateUser(user models.User, email string, exp time.Duration) 
 	}
 
 	return userResp, nil
+}
+
+func (s *Service) Logout(token, email string) error {
+	tokenUser, err := s.store.GetToken(email)
+	if err != nil {
+		return err
+	}
+
+	if token != tokenUser {
+		return fmt.Errorf("invalid token")
+	}
+
+	err = s.store.DeleteToken(email)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
