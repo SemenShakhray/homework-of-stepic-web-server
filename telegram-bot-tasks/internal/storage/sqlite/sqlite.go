@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"rwa/internal/config.go"
-	"rwa/internal/service"
+	"taskbot/internal/config"
+	"taskbot/service"
 
 	_ "github.com/mattn/go-sqlite3"
 )

@@ -10,7 +10,7 @@ import (
 func (s *Storage) GetAllTasks() ([]models.Task, error) {
 	var tasks []models.Task
 
-	rows, err := s.db.Query(`SELECT task_id, description, owner_id, assigned_id 
+	rows, err := s.db.Query(`SELECT task_id, description, owner_id, assign_name 
 	FROM tasks`)
 	if err != nil {
 		log.Println("failed query of get tasks:", err)
@@ -22,7 +22,7 @@ func (s *Storage) GetAllTasks() ([]models.Task, error) {
 	for rows.Next() {
 		var task models.Task
 
-		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignedID)
+		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignName)
 		if err != nil {
 			log.Println("failed to scan task:", err)
 
@@ -35,30 +35,33 @@ func (s *Storage) GetAllTasks() ([]models.Task, error) {
 	return tasks, nil
 }
 
-func (s *Storage) NewTask(description string, ownerID int) error {
-	query := "INSERT INTO tasks (description, owner_id) VALUES (?, ?)"
+func (s *Storage) NewTask(description, assignName string, ownerID int) (map[int]string, error) {
+	query := "INSERT INTO tasks (description, owner_id, assign_name) VALUES (?, ?, ?)"
 
-	res, err := s.db.Exec(query, description, ownerID)
+	res, err := s.db.Exec(query, description, ownerID, "@"+assignName)
 	if err != nil {
 		log.Println("error adding a new task", err)
 
-		return fmt.Errorf("failed created task: %w", err)
+		return nil, fmt.Errorf("failed created task: %w", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
 		log.Println("couldn't get the ID of the last record", err)
 
-		return fmt.Errorf("failed created user: %w", err)
+		return nil, fmt.Errorf("failed created user: %w", err)
 	}
 
 	if id == 0 {
 		log.Println("ID last record is nil", err)
 
-		return fmt.Errorf("failed created user: %w", err)
+		return nil, fmt.Errorf("failed created user: %w", err)
 	}
 
-	return nil
+	answer := make(map[int]string)
+	answer[ownerID] = fmt.Sprintf(`Задача "%s" создана, id=%d`, description, id)
+
+	return answer, nil
 }
 
 func (s *Storage) Assing(taskID, assignedID int) error {
@@ -124,7 +127,7 @@ func (s *Storage) GetMyTasks(myID int) ([]models.Task, error) {
 	for rows.Next() {
 		var task models.Task
 
-		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignedID)
+		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignName)
 		if err != nil {
 			log.Println("failed to scan task:", err)
 
@@ -152,7 +155,7 @@ func (s *Storage) GetOwnTasks(myID int) ([]models.Task, error) {
 	for rows.Next() {
 		var task models.Task
 
-		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignedID)
+		err := rows.Scan(&task.TaskID, &task.Description, &task.OwnerID, &task.AssignName)
 		if err != nil {
 			log.Println("failed to scan task:", err)
 

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS tasks(
     task_id INTEGER PRIMARY KEY AUTOINCREMENT,
     description TEXT NOT NULL,
     owner_id INTEGER NOT NULL,
-    assigned_id INTEGER
+    assign_name VARCHAR(128)
 ); 
 -- +goose StatementEnd
 
